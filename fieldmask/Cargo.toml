@@ -3,3 +3,6 @@ name = "fieldmask"
 version = "0.1.0"
 authors = ["Weiwei Lin <weiwei.will.lin@gmail.com>"]
 edition = "2018"
+
+[dependencies]
+derive_more = "0.99.11"

@@ -8,18 +8,18 @@ pub trait Maskable: Sized {
     type Mask;
 
     /// Implementation of the deserialization process of a mask.
-    fn deserialize_mask_impl<S: AsRef<str>, T: IntoIterator<Item = S>>(
+    fn deserialize_mask_impl<'a, T: Iterator<Item = &'a str>>(
         field_mask: T,
-    ) -> Result<Self::Mask, S>;
+    ) -> Result<Self::Mask, &'a str>;
 
     /// Deserialize a mask and return a FieldMask.
     ///
     /// Call deserialize_mask_impl to compute the mask and wrap the mask in FieldMask.
     ///
     /// This is the only public interface from which a FieldMask can be obtained.
-    fn deserialize_mask<S: AsRef<str>, T: IntoIterator<Item = S>>(
+    fn deserialize_mask<'a, T: Iterator<Item = &'a str>>(
         field_mask: T,
-    ) -> Result<FieldMask<Self>, S> {
+    ) -> Result<FieldMask<Self>, &'a str> {
         let mask = Self::deserialize_mask_impl(field_mask)?;
         Ok(FieldMask(mask))
     }
