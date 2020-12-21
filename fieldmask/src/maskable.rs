@@ -65,3 +65,22 @@ where
         }
     }
 }
+
+impl Maskable for u32 {
+    type Mask = bool;
+
+    fn deserialize_mask_impl<'a, T: Iterator<Item = &'a str>>(
+        field_mask: T,
+    ) -> Result<Self::Mask, &'a str> {
+        for entry in field_mask {
+            return Err(entry);
+        }
+        return Ok(false);
+    }
+
+    fn apply_mask_impl(&mut self, other: Self, mask: Self::Mask) {
+        if mask {
+            *self = other;
+        }
+    }
+}

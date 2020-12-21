@@ -1,36 +1,9 @@
-use fieldmask::{BitwiseWrap, Maskable};
+use fieldmask::Maskable;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Maskable)]
 struct Flat {
     a: u32,
     b: u32,
-}
-
-impl Maskable for Flat {
-    type Mask = BitwiseWrap<(bool, bool)>;
-
-    fn deserialize_mask_impl<'a, T: Iterator<Item = &'a str>>(
-        field_mask: T,
-    ) -> Result<Self::Mask, &'a str> {
-        let mut mask = Self::Mask::default();
-        for entry in field_mask {
-            match entry {
-                "a" => mask.0 .0 |= true,
-                "b" => mask.0 .1 |= true,
-                _ => return Err(entry),
-            }
-        }
-        Ok(mask)
-    }
-
-    fn apply_mask_impl(&mut self, other: Self, mask: Self::Mask) {
-        if mask.0 .0 {
-            self.a = other.a;
-        }
-        if mask.0 .1 {
-            self.b = other.b;
-        }
-    }
 }
 
 #[test]
