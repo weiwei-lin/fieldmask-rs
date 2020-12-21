@@ -4,7 +4,7 @@ use derive_more::{AsMut, AsRef, Deref, DerefMut, From};
 
 use crate::maskable::Maskable;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct FieldMask<T: Maskable>(pub(crate) T::Mask);
 
 impl<T: Maskable> BitAnd for FieldMask<T>
@@ -87,7 +87,7 @@ where
     }
 }
 
-#[derive(AsMut, AsRef, Deref, DerefMut, From, Default)]
+#[derive(AsMut, AsRef, Deref, DerefMut, From, Default, PartialEq)]
 #[deref(forward)]
 #[deref_mut(forward)]
 pub struct BitwiseWrap<T>(pub T);
@@ -104,7 +104,7 @@ macro_rules! tuple_impls {
 
         impl<$($T: BitAndAssign),+> BitAndAssign for BitwiseWrap<($($T),+,)> {
             fn bitand_assign(&mut self, rhs: Self) {
-                $(self.0.$idx&= rhs.0.$idx;)+
+                $(self.0.$idx &= rhs.0.$idx;)+
             }
         }
 

@@ -70,7 +70,7 @@ impl Maskable for ParentStruct {
 }
 
 #[test]
-fn test_nested_struct() {
+fn nested_struct() {
     let mut struct1 = ParentStruct {
         child: ChildStruct { a: 1, b: 2 },
         c: 3,
@@ -88,6 +88,30 @@ fn test_nested_struct() {
     struct1.apply_mask(
         struct2,
         ParentStruct::deserialize_mask(vec!["child.b", "c"].into_iter())
+            .expect("unable to deserialize mask"),
+    );
+    assert_eq!(struct1, expected_struct);
+}
+
+#[test]
+fn full_child_mask() {
+    let mut struct1 = ParentStruct {
+        child: ChildStruct { a: 1, b: 2 },
+        c: 3,
+    };
+    let struct2 = ParentStruct {
+        child: ChildStruct { a: 4, b: 5 },
+        c: 6,
+    };
+
+    let expected_struct = ParentStruct {
+        child: ChildStruct { a: 4, b: 5 },
+        c: 6,
+    };
+
+    struct1.apply_mask(
+        struct2,
+        ParentStruct::deserialize_mask(vec!["child", "c"].into_iter())
             .expect("unable to deserialize mask"),
     );
     assert_eq!(struct1, expected_struct);

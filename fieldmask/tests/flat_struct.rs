@@ -34,7 +34,7 @@ impl Maskable for FlatStruct {
 }
 
 #[test]
-fn test_flat_struct() {
+fn flat_struct() {
     let mut struct1 = FlatStruct { a: 1, b: 2 };
     let struct2 = FlatStruct { a: 3, b: 4 };
 
@@ -42,6 +42,19 @@ fn test_flat_struct() {
     struct1.apply_mask(
         struct2,
         FlatStruct::deserialize_mask(vec!["b"].into_iter()).expect("unable to deserialize mask"),
+    );
+    assert_eq!(struct1, expected_struct);
+}
+
+#[test]
+fn empty_mask() {
+    let mut struct1 = FlatStruct { a: 1, b: 2 };
+    let struct2 = FlatStruct { a: 3, b: 4 };
+
+    let expected_struct = FlatStruct { a: 1, b: 2 };
+    struct1.apply_mask(
+        struct2,
+        FlatStruct::deserialize_mask(vec![].into_iter()).expect("unable to deserialize mask"),
     );
     assert_eq!(struct1, expected_struct);
 }

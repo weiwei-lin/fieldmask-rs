@@ -1,11 +1,14 @@
-use std::marker::PhantomData;
+use std::{
+    marker::PhantomData,
+    ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign},
+};
 
 use crate::FieldMask;
 
 pub struct Seal<'a>(PhantomData<&'a ()>);
 
 pub trait Maskable: Sized {
-    type Mask;
+    type Mask: Default + BitAnd + BitAndAssign + BitOr + BitOrAssign + BitXor + BitXorAssign;
 
     /// Implementation of the deserialization process of a mask.
     fn deserialize_mask_impl<'a, T: Iterator<Item = &'a str>>(
@@ -48,5 +51,39 @@ pub trait Maskable: Sized {
     fn apply_mask(&mut self, other: Self, mask: FieldMask<Self>) {
         let seal = Seal(PhantomData);
         self.apply_mask_impl(other, mask.0, seal);
+    }
+}
+
+impl<I: Maskable> Maskable for Option<I>
+where
+    I: Default,
+    I::Mask: Default + PartialEq,
+{
+    type Mask = I::Mask;
+
+    fn deserialize_mask_impl<'a, T: Iterator<Item = &'a str>>(
+        field_mask: T,
+    ) -> Result<Self::Mask, &'a str> {
+        I::deserialize_mask_impl(field_mask)
+    }
+
+    fn apply_mask_impl(&mut self, other: Self, mask: Self::Mask, _seal: Seal) {
+        if mask == Self::Mask::default() {
+            return;
+        }
+        match self {
+            Some(s) => match other {
+                Some(o) => s.apply_mask_impl(o, mask, _seal),
+                None => *self = None,
+            },
+            None => match other {
+                Some(o) => {
+                    let mut new = I::default();
+                    new.apply_mask_impl(o, mask, _seal);
+                    *self = Some(new);
+                }
+                None => {}
+            },
+        }
     }
 }
