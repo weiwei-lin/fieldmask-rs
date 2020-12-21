@@ -33,3 +33,11 @@ fn empty_mask() {
         .apply(&mut struct1, struct2);
     assert_eq!(struct1, expected_struct);
 }
+
+#[test]
+fn nested_mask() {
+    assert_eq!(
+        FieldMask::<Flat>::try_from(FieldMaskInput(vec!["a.b"].into_iter())),
+        Err("a.b")
+    );
+}

@@ -7,7 +7,7 @@ use derive_more::{AsMut, AsRef, Deref, DerefMut, From};
 
 use crate::maskable::Maskable;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub struct FieldMask<T: Maskable>(T::Mask);
 
 impl<T: Maskable> FieldMask<T> {
@@ -125,7 +125,7 @@ where
     }
 }
 
-#[derive(AsMut, AsRef, Deref, DerefMut, From, Default, PartialEq)]
+#[derive(AsMut, AsRef, Deref, DerefMut, From, Default, PartialEq, Debug)]
 #[deref(forward)]
 #[deref_mut(forward)]
 pub struct BitwiseWrap<T>(pub T);
