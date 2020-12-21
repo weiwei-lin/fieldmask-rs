@@ -9,6 +9,13 @@ use crate::maskable::Maskable;
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct FieldMask<T: Maskable>(T::Mask);
+
+impl<T: Maskable> FieldMask<T> {
+    pub fn try_bitand_assign<'a, I: Iterator<Item = &'a str>>(&mut self, rhs: I) -> Result<(), ()> {
+        T::deserialize_mask(&mut self.0, rhs)
+    }
+}
+
 pub struct FieldMaskInput<T>(pub T);
 
 impl<'a, I, T> TryFrom<FieldMaskInput<I>> for FieldMask<T>
@@ -19,11 +26,12 @@ where
     type Error = &'a str;
 
     fn try_from(value: FieldMaskInput<I>) -> Result<Self, Self::Error> {
-        let mut mask = T::Mask::default();
+        let mut mask = Self::default();
         for entry in value.0 {
-            T::deserialize_mask(&mut mask, entry).map_err(|_| entry)?;
+            mask.try_bitand_assign(entry.split('.'))
+                .map_err(|_| entry)?;
         }
-        Ok(FieldMask(mask))
+        Ok(mask)
     }
 }
 

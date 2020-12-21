@@ -17,7 +17,6 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
         _ => unimplemented!(),
     };
     let field_types1 = fields.iter().map(|field| &field.ty);
-    let field_types2 = field_types1.clone();
     let field_names1 = fields.iter().map(|field| &field.ident);
     let field_names2 = field_names1.clone();
     let field_names3 = field_names1.clone();
@@ -29,22 +28,21 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
         {
             type Mask = ::fieldmask::BitwiseWrap<(#(::fieldmask::FieldMask<#field_types1>,)*)>;
 
-            fn deserialize_mask<'a>(
+            fn deserialize_mask<'a, I: ::core::iter::Iterator<Item = &'a str>>(
                 mask: &mut Self::Mask,
-                field_mask: &'a str,
+                mut field_mask_segs: I,
             ) -> ::core::result::Result<(), ()> {
-                match field_mask {
-                    #(stringify!(#field_names1) => mask.0.#field_indices1 |= !::fieldmask::FieldMask::<#field_types2>::default(),)*
-                    _ => return Err(()),
+                let seg = ::core::iter::Iterator::next(&mut field_mask_segs);
+                match seg {
+                    None => *mask = !Self::Mask::default(),
+                    #(Some(stringify!(#field_names1)) => mask.0.#field_indices1.try_bitand_assign(field_mask_segs)?,)*
+                    Some(_) => return Err(()),
                 }
                 Ok(())
             }
 
             fn apply_mask(&mut self, src: Self, mask: Self::Mask) {
-                #(
-                    mask.0.#field_indices2.apply(&mut self.#field_names2, src.#field_names3);
-                    
-                )*
+                #(mask.0.#field_indices2.apply(&mut self.#field_names2, src.#field_names3);)*
             }
         }
     })

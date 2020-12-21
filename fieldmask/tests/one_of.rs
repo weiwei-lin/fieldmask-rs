@@ -15,27 +15,38 @@ struct Parent {
 }
 
 impl Maskable for Parent {
-    type Mask = BitwiseWrap<(bool, bool, bool)>;
+    type Mask = BitwiseWrap<(FieldMask<String>, FieldMask<String>, FieldMask<u32>)>;
 
-    fn deserialize_mask<'a>(mask: &mut Self::Mask, field_mask: &'a str) -> Result<(), ()> {
-        match field_mask {
-            "a" => mask.0 .0 |= true,
-            "b" => mask.0 .1 |= true,
-            "c" => mask.0 .2 |= true,
-            _ => return Err(()),
+    fn deserialize_mask<'a, I: Iterator<Item = &'a str>>(
+        mask: &mut Self::Mask,
+        mut field_mask_segs: I,
+    ) -> Result<(), ()> {
+        let seg = field_mask_segs.next();
+        match seg {
+            None => *mask = !Self::Mask::default(),
+            Some("a") => mask.0 .0.try_bitand_assign(field_mask_segs)?,
+            Some("b") => mask.0 .1.try_bitand_assign(field_mask_segs)?,
+            Some("c") => mask.0 .2.try_bitand_assign(field_mask_segs)?,
+            Some(_) => return Err(()),
         }
         Ok(())
     }
 
-    fn apply_mask(&mut self, other: Self, mask: Self::Mask) {
-        match other.one_of {
-            Some(OneOf::A(a)) if mask.0 .0 => self.one_of = Some(OneOf::A(a)),
-            Some(OneOf::B(b)) if mask.0 .1 => self.one_of = Some(OneOf::B(b)),
-            _ if mask.0 .0 || mask.0 .1 => self.one_of = None,
+    fn apply_mask(&mut self, src: Self, mask: Self::Mask) {
+        match src.one_of {
+            Some(OneOf::A(a)) if mask.0 .0 != FieldMask::default() => {
+                self.one_of = Some(OneOf::A(a))
+            }
+            Some(OneOf::B(b)) if mask.0 .1 != FieldMask::default() => {
+                self.one_of = Some(OneOf::B(b))
+            }
+            _ if mask.0 .0 != FieldMask::default() || mask.0 .1 != FieldMask::default() => {
+                self.one_of = None
+            }
             _ => (),
         }
-        if mask.0 .2 {
-            self.c = other.c;
+        if mask.0 .2 != FieldMask::default() {
+            self.c = src.c;
         }
     }
 }

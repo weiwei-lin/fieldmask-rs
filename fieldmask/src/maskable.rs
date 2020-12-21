@@ -1,5 +1,7 @@
+use std::ops::{BitOr, Not};
+
 pub trait Maskable: Sized {
-    type Mask: Default;
+    type Mask: Default + Not + BitOr;
 
     /// Deserialize a mask and return a FieldMask.
     ///
@@ -7,21 +9,27 @@ pub trait Maskable: Sized {
     ///
     /// This is the only public interface, other than bitwise, default and not operations, from
     /// which a FieldMask can be obtained.
-    fn deserialize_mask<'a>(mask: &mut Self::Mask, field_mask: &'a str) -> Result<(), ()>;
+    fn deserialize_mask<'a, I: Iterator<Item = &'a str>>(
+        mask: &mut Self::Mask,
+        field_mask_segs: I,
+    ) -> Result<(), ()>;
 
     /// Implementation of the application process of a mask.
     fn apply_mask(&mut self, src: Self, mask: Self::Mask);
 }
 
-impl<I: Maskable> Maskable for Option<I>
+impl<T: Maskable> Maskable for Option<T>
 where
-    I: Default,
-    I::Mask: Default + PartialEq,
+    T: Default,
+    T::Mask: PartialEq,
 {
-    type Mask = I::Mask;
+    type Mask = T::Mask;
 
-    fn deserialize_mask<'a>(mask: &mut Self::Mask, field_mask: &'a str) -> Result<(), ()> {
-        I::deserialize_mask(mask, field_mask)
+    fn deserialize_mask<'a, I: Iterator<Item = &'a str>>(
+        mask: &mut Self::Mask,
+        field_mask_segs: I,
+    ) -> Result<(), ()> {
+        T::deserialize_mask(mask, field_mask_segs)
     }
 
     fn apply_mask(&mut self, src: Self, mask: Self::Mask) {
@@ -35,7 +43,7 @@ where
             },
             None => match src {
                 Some(o) => {
-                    let mut new = I::default();
+                    let mut new = T::default();
                     new.apply_mask(o, mask);
                     *self = Some(new);
                 }
@@ -48,8 +56,36 @@ where
 impl Maskable for u32 {
     type Mask = bool;
 
-    fn deserialize_mask<'a>(_mask: &mut Self::Mask, _field_mask: &'a str) -> Result<(), ()> {
-        Err(())
+    fn deserialize_mask<'a, I: Iterator<Item = &'a str>>(
+        mask: &mut Self::Mask,
+        mut field_mask_segs: I,
+    ) -> Result<(), ()> {
+        match field_mask_segs.next() {
+            Some(_) => return Err(()),
+            None => *mask = true,
+        }
+        Ok(())
+    }
+
+    fn apply_mask(&mut self, other: Self, mask: Self::Mask) {
+        if mask {
+            *self = other;
+        }
+    }
+}
+
+impl Maskable for String {
+    type Mask = bool;
+
+    fn deserialize_mask<'a, I: Iterator<Item = &'a str>>(
+        mask: &mut Self::Mask,
+        mut field_mask_segs: I,
+    ) -> Result<(), ()> {
+        match field_mask_segs.next() {
+            Some(_) => return Err(()),
+            None => *mask = true,
+        }
+        Ok(())
     }
 
     fn apply_mask(&mut self, other: Self, mask: Self::Mask) {
