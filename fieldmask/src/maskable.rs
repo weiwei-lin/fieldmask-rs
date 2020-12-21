@@ -12,7 +12,8 @@ pub trait Maskable: Sized {
     ///
     /// Call deserialize_mask_impl to compute the mask and wrap the mask in FieldMask.
     ///
-    /// This is the only public interface from which a FieldMask can be obtained.
+    /// This is the only public interface, other than bitwise, default and not operations, from
+    /// which a FieldMask can be obtained.
     fn deserialize_mask<'a, T: Iterator<Item = &'a str>>(
         field_mask: T,
     ) -> Result<FieldMask<Self>, &'a str> {
@@ -24,8 +25,6 @@ pub trait Maskable: Sized {
     fn apply_mask_impl(&mut self, other: Self, mask: Self::Mask);
 
     /// Update the object according to mask.
-    ///
-    /// This is the only function that can call apply_mask_impl thanks to Seal.
     ///
     /// It takes the mask value out of FieldMask and passes it to apply_mask_impl.
     fn apply_mask(&mut self, other: Self, mask: FieldMask<Self>) {
