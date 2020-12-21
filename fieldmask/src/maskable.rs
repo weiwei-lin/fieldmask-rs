@@ -53,44 +53,30 @@ where
     }
 }
 
-impl Maskable for u32 {
-    type Mask = bool;
+macro_rules! maskable {
+    ($T:ident) => {
+        impl Maskable for $T {
+            type Mask = bool;
 
-    fn deserialize_mask<'a, I: Iterator<Item = &'a str>>(
-        mask: &mut Self::Mask,
-        mut field_mask_segs: I,
-    ) -> Result<(), ()> {
-        match field_mask_segs.next() {
-            Some(_) => return Err(()),
-            None => *mask = true,
-        }
-        Ok(())
-    }
+            fn deserialize_mask<'a, I: Iterator<Item = &'a str>>(
+                mask: &mut Self::Mask,
+                mut field_mask_segs: I,
+            ) -> Result<(), ()> {
+                match field_mask_segs.next() {
+                    Some(_) => return Err(()),
+                    None => *mask = true,
+                }
+                Ok(())
+            }
 
-    fn apply_mask(&mut self, other: Self, mask: Self::Mask) {
-        if mask {
-            *self = other;
+            fn apply_mask(&mut self, other: Self, mask: Self::Mask) {
+                if mask {
+                    *self = other;
+                }
+            }
         }
-    }
+    };
 }
 
-impl Maskable for String {
-    type Mask = bool;
-
-    fn deserialize_mask<'a, I: Iterator<Item = &'a str>>(
-        mask: &mut Self::Mask,
-        mut field_mask_segs: I,
-    ) -> Result<(), ()> {
-        match field_mask_segs.next() {
-            Some(_) => return Err(()),
-            None => *mask = true,
-        }
-        Ok(())
-    }
-
-    fn apply_mask(&mut self, other: Self, mask: Self::Mask) {
-        if mask {
-            *self = other;
-        }
-    }
-}
+maskable!(u32);
+maskable!(String);
