@@ -2,4 +2,5 @@
 
 members = [
     "fieldmask",
+    "fieldmask_derive",
 ]
