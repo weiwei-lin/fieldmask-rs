@@ -1,4 +1,6 @@
-use fieldmask::Maskable;
+use std::convert::TryFrom;
+
+use fieldmask::{FieldMask, FieldMaskInput, Maskable};
 
 #[derive(Debug, PartialEq, Maskable)]
 struct Flat {
@@ -12,10 +14,10 @@ fn flat() {
     let struct2 = Flat { a: 3, b: 4 };
 
     let expected_struct = Flat { a: 1, b: 4 };
-    struct1.apply_mask(
-        struct2,
-        Flat::deserialize_mask(vec!["b"].into_iter()).expect("unable to deserialize mask"),
-    );
+
+    FieldMask::try_from(FieldMaskInput(vec!["b"].into_iter()))
+        .expect("unable to deserialize mask")
+        .apply(&mut struct1, struct2);
     assert_eq!(struct1, expected_struct);
 }
 
@@ -25,9 +27,9 @@ fn empty_mask() {
     let struct2 = Flat { a: 3, b: 4 };
 
     let expected_struct = Flat { a: 1, b: 2 };
-    struct1.apply_mask(
-        struct2,
-        Flat::deserialize_mask(vec![].into_iter()).expect("unable to deserialize mask"),
-    );
+
+    FieldMask::try_from(FieldMaskInput(vec![].into_iter()))
+        .expect("unable to deserialize mask")
+        .apply(&mut struct1, struct2);
     assert_eq!(struct1, expected_struct);
 }

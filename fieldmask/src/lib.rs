@@ -1,4 +1,4 @@
-pub use field_mask::{BitwiseWrap, FieldMask};
+pub use field_mask::{BitwiseWrap, FieldMask, FieldMaskInput};
 pub use fieldmask_derive::Maskable;
 pub use maskable::Maskable;
 

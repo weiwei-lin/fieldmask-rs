@@ -1,4 +1,6 @@
-use fieldmask::{BitwiseWrap, FieldMask, Maskable};
+use std::convert::TryFrom;
+
+use fieldmask::{BitwiseWrap, FieldMask, FieldMaskInput, Maskable};
 
 #[derive(Debug, PartialEq, Eq, Default)]
 struct Child {
@@ -15,21 +17,16 @@ struct Parent {
 impl Maskable for Child {
     type Mask = BitwiseWrap<(bool, bool)>;
 
-    fn deserialize_mask_impl<'a, T: IntoIterator<Item = &'a str>>(
-        field_mask: T,
-    ) -> Result<Self::Mask, &'a str> {
-        let mut mask = Self::Mask::default();
-        for entry in field_mask {
-            match entry {
-                "a" => mask.0 .0 |= true,
-                "b" => mask.0 .1 |= true,
-                _ => return Err(entry),
-            }
+    fn deserialize_mask<'a>(mask: &mut Self::Mask, field_mask: &'a str) -> Result<(), ()> {
+        match field_mask {
+            "a" => mask.0 .0 |= true,
+            "b" => mask.0 .1 |= true,
+            _ => return Err(()),
         }
-        Ok(mask)
+        Ok(())
     }
 
-    fn apply_mask_impl(&mut self, other: Self, mask: Self::Mask) {
+    fn apply_mask(&mut self, other: Self, mask: Self::Mask) {
         if mask.0 .0 {
             self.a = other.a;
         }
@@ -42,29 +39,24 @@ impl Maskable for Child {
 impl Maskable for Parent {
     type Mask = BitwiseWrap<(FieldMask<Option<Child>>, bool)>;
 
-    fn deserialize_mask_impl<'a, T: IntoIterator<Item = &'a str>>(
-        field_mask: T,
-    ) -> Result<Self::Mask, &'a str> {
-        let mut mask = Self::Mask::default();
-
-        for entry in field_mask {
-            match entry {
-                "child" => mask.0 .0 |= !FieldMask::<Option<Child>>::default(),
-                child if child.starts_with("child.") => {
-                    let child_attr = &child["child.".len()..];
-                    mask.0 .0 |= Option::<Child>::deserialize_mask(vec![child_attr].into_iter())?;
-                }
-                "c" => mask.0 .1 |= true,
-                _ => return Err(entry),
+    fn deserialize_mask<'a>(mask: &mut Self::Mask, field_mask: &'a str) -> Result<(), ()> {
+        match field_mask {
+            "child" => mask.0 .0 |= !FieldMask::<Option<Child>>::default(),
+            child if child.starts_with("child.") => {
+                let child_attr = &child["child.".len()..];
+                mask.0 .0 |= FieldMask::try_from(FieldMaskInput(vec![child_attr].into_iter()))
+                    .map_err(|_| ())?;
             }
+            "c" => mask.0 .1 |= true,
+            _ => return Err(()),
         }
-        Ok(mask)
+        Ok(())
     }
 
-    fn apply_mask_impl(&mut self, other: Self, mask: Self::Mask) {
-        self.child.apply_mask(other.child, mask.0 .0);
+    fn apply_mask(&mut self, src: Self, mask: Self::Mask) {
+        mask.0 .0.apply(&mut self.child, src.child);
         if mask.0 .1 {
-            self.c = other.c;
+            self.c = src.c;
         }
     }
 }
@@ -85,11 +77,9 @@ fn optional_child() {
         c: 6,
     };
 
-    struct1.apply_mask(
-        struct2,
-        Parent::deserialize_mask(vec!["child.b", "c"].into_iter())
-            .expect("unable to deserialize mask"),
-    );
+    FieldMask::try_from(FieldMaskInput(vec!["child.b", "c"].into_iter()))
+        .expect("unable to deserialize mask")
+        .apply(&mut struct1, struct2);
     assert_eq!(struct1, expected_struct);
 }
 
@@ -103,11 +93,9 @@ fn other_child_is_none() {
 
     let expected_struct = Parent { child: None, c: 6 };
 
-    struct1.apply_mask(
-        struct2,
-        Parent::deserialize_mask(vec!["child.b", "c"].into_iter())
-            .expect("unable to deserialize mask"),
-    );
+    FieldMask::try_from(FieldMaskInput(vec!["child.b", "c"].into_iter()))
+        .expect("unable to deserialize mask")
+        .apply(&mut struct1, struct2);
     assert_eq!(struct1, expected_struct);
 }
 
@@ -124,11 +112,9 @@ fn self_child_is_none() {
         c: 6,
     };
 
-    struct1.apply_mask(
-        struct2,
-        Parent::deserialize_mask(vec!["child.b", "c"].into_iter())
-            .expect("unable to deserialize mask"),
-    );
+    FieldMask::try_from(FieldMaskInput(vec!["child.b", "c"].into_iter()))
+        .expect("unable to deserialize mask")
+        .apply(&mut struct1, struct2);
     assert_eq!(struct1, expected_struct);
 }
 
@@ -139,11 +125,9 @@ fn both_children_are_none() {
 
     let expected_struct = Parent { child: None, c: 6 };
 
-    struct1.apply_mask(
-        struct2,
-        Parent::deserialize_mask(vec!["child.b", "c"].into_iter())
-            .expect("unable to deserialize mask"),
-    );
+    FieldMask::try_from(FieldMaskInput(vec!["child.b", "c"].into_iter()))
+        .expect("unable to deserialize mask")
+        .apply(&mut struct1, struct2);
     assert_eq!(struct1, expected_struct);
 }
 
@@ -160,10 +144,9 @@ fn no_mask_applied_to_child() {
         c: 6,
     };
 
-    struct1.apply_mask(
-        struct2,
-        Parent::deserialize_mask(vec!["c"].into_iter()).expect("unable to deserialize mask"),
-    );
+    FieldMask::try_from(FieldMaskInput(vec!["c"].into_iter()))
+        .expect("unable to deserialize mask")
+        .apply(&mut struct1, struct2);
     assert_eq!(struct1, expected_struct);
 }
 
@@ -177,10 +160,8 @@ fn full_child_mask() {
 
     let expected_struct = Parent { child: None, c: 6 };
 
-    struct1.apply_mask(
-        struct2,
-        Parent::deserialize_mask(vec!["child", "c"].into_iter())
-            .expect("unable to deserialize mask"),
-    );
+    FieldMask::try_from(FieldMaskInput(vec!["child", "c"].into_iter()))
+        .expect("unable to deserialize mask")
+        .apply(&mut struct1, struct2);
     assert_eq!(struct1, expected_struct);
 }

@@ -29,22 +29,20 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
         {
             type Mask = ::fieldmask::BitwiseWrap<(#(::fieldmask::FieldMask<#field_types1>,)*)>;
 
-            fn deserialize_mask_impl<'a, T: Iterator<Item = &'a ::core::primitive::str>>(
-                field_mask: T,
-            ) -> ::core::result::Result<Self::Mask, &'a ::core::primitive::str> {
-                let mut mask = Self::Mask::default();
-                for entry in field_mask {
-                    match entry {
-                        #(stringify!(#field_names1) => mask.0.#field_indices1 |= !::fieldmask::FieldMask::<#field_types2>::default(),)*
-                        _ => return Err(entry),
-                    }
+            fn deserialize_mask<'a>(
+                mask: &mut Self::Mask,
+                field_mask: &'a str,
+            ) -> ::core::result::Result<(), ()> {
+                match field_mask {
+                    #(stringify!(#field_names1) => mask.0.#field_indices1 |= !::fieldmask::FieldMask::<#field_types2>::default(),)*
+                    _ => return Err(()),
                 }
-                Ok(mask)
+                Ok(())
             }
 
-            fn apply_mask_impl(&mut self, other: Self, mask: Self::Mask) {
+            fn apply_mask(&mut self, src: Self, mask: Self::Mask) {
                 #(
-                    ::fieldmask::Maskable::apply_mask(&mut self.#field_names2, other.#field_names3, mask.0.#field_indices2);
+                    mask.0.#field_indices2.apply(&mut self.#field_names2, src.#field_names3);
                     
                 )*
             }

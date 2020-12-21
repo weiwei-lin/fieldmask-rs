@@ -1,4 +1,6 @@
-use fieldmask::{BitwiseWrap, Maskable};
+use std::convert::TryFrom;
+
+use fieldmask::{BitwiseWrap, FieldMask, FieldMaskInput, Maskable};
 
 #[derive(Debug, PartialEq)]
 enum OneOf {
@@ -15,22 +17,17 @@ struct Parent {
 impl Maskable for Parent {
     type Mask = BitwiseWrap<(bool, bool, bool)>;
 
-    fn deserialize_mask_impl<'a, T: Iterator<Item = &'a str>>(
-        field_mask: T,
-    ) -> Result<Self::Mask, &'a str> {
-        let mut mask = Self::Mask::default();
-        for entry in field_mask {
-            match entry {
-                "a" => mask.0 .0 |= true,
-                "b" => mask.0 .1 |= true,
-                "c" => mask.0 .2 |= true,
-                _ => return Err(entry),
-            }
+    fn deserialize_mask<'a>(mask: &mut Self::Mask, field_mask: &'a str) -> Result<(), ()> {
+        match field_mask {
+            "a" => mask.0 .0 |= true,
+            "b" => mask.0 .1 |= true,
+            "c" => mask.0 .2 |= true,
+            _ => return Err(()),
         }
-        Ok(mask)
+        Ok(())
     }
 
-    fn apply_mask_impl(&mut self, other: Self, mask: Self::Mask) {
+    fn apply_mask(&mut self, other: Self, mask: Self::Mask) {
         match other.one_of {
             Some(OneOf::A(a)) if mask.0 .0 => self.one_of = Some(OneOf::A(a)),
             Some(OneOf::B(b)) if mask.0 .1 => self.one_of = Some(OneOf::B(b)),
@@ -58,10 +55,10 @@ fn one_of() {
         one_of: Some(OneOf::B("b".into())),
         c: 2,
     };
-    struct1.apply_mask(
-        struct2,
-        Parent::deserialize_mask(vec!["b", "c"].into_iter()).expect("unable to deserialize mask"),
-    );
+
+    FieldMask::try_from(FieldMaskInput(vec!["b", "c"].into_iter()))
+        .expect("unable to deserialize mask")
+        .apply(&mut struct1, struct2);
     assert_eq!(struct1, expected_struct);
 }
 
@@ -77,10 +74,10 @@ fn no_field() {
     };
 
     let expected_struct = Parent { one_of: None, c: 2 };
-    struct1.apply_mask(
-        struct2,
-        Parent::deserialize_mask(vec!["b", "c"].into_iter()).expect("unable to deserialize mask"),
-    );
+
+    FieldMask::try_from(FieldMaskInput(vec!["b", "c"].into_iter()))
+        .expect("unable to deserialize mask")
+        .apply(&mut struct1, struct2);
     assert_eq!(struct1, expected_struct);
 }
 
@@ -99,10 +96,10 @@ fn matched_field() {
         one_of: Some(OneOf::A("a2".into())),
         c: 2,
     };
-    struct1.apply_mask(
-        struct2,
-        Parent::deserialize_mask(vec!["a", "c"].into_iter()).expect("unable to deserialize mask"),
-    );
+
+    FieldMask::try_from(FieldMaskInput(vec!["a", "c"].into_iter()))
+        .expect("unable to deserialize mask")
+        .apply(&mut struct1, struct2);
     assert_eq!(struct1, expected_struct);
 }
 
@@ -118,9 +115,9 @@ fn self_none() {
         one_of: Some(OneOf::A("a2".into())),
         c: 2,
     };
-    struct1.apply_mask(
-        struct2,
-        Parent::deserialize_mask(vec!["a", "c"].into_iter()).expect("unable to deserialize mask"),
-    );
+
+    FieldMask::try_from(FieldMaskInput(vec!["a", "c"].into_iter()))
+        .expect("unable to deserialize mask")
+        .apply(&mut struct1, struct2);
     assert_eq!(struct1, expected_struct);
 }

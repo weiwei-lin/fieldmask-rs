@@ -1,14 +1,44 @@
-use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not};
+use std::{
+    convert::TryFrom,
+    ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not},
+};
 
 use derive_more::{AsMut, AsRef, Deref, DerefMut, From};
 
 use crate::maskable::Maskable;
 
 #[derive(Clone, Copy, PartialEq)]
-pub struct FieldMask<T: Maskable>(pub(crate) T::Mask);
+pub struct FieldMask<T: Maskable>(T::Mask);
+pub struct FieldMaskInput<T>(pub T);
 
-impl<T: Maskable> BitAnd for FieldMask<T>
+impl<'a, I, T> TryFrom<FieldMaskInput<I>> for FieldMask<T>
 where
+    I: Iterator<Item = &'a str>,
+    T: Maskable,
+{
+    type Error = &'a str;
+
+    fn try_from(value: FieldMaskInput<I>) -> Result<Self, Self::Error> {
+        let mut mask = T::Mask::default();
+        for entry in value.0 {
+            T::deserialize_mask(&mut mask, entry).map_err(|_| entry)?;
+        }
+        Ok(FieldMask(mask))
+    }
+}
+
+impl<T: Maskable> FieldMask<T> {
+    /// Update the object according to mask.
+    ///
+    /// It takes the mask value out of FieldMask and passes it to apply_mask_impl.
+    pub fn apply(self, target: &mut T, src: T) {
+        T::apply_mask(target, src, self.0);
+    }
+}
+
+impl<T> BitAnd for FieldMask<T>
+where
+    T: Maskable,
     T::Mask: BitAnd<Output = T::Mask>,
 {
     type Output = Self;
