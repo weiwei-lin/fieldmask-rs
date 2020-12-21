@@ -23,7 +23,7 @@ impl Maskable for FlatStruct {
         Ok(mask)
     }
 
-    fn apply_mask_impl(&mut self, other: Self, mask: Self::Mask, _seal: fieldmask::Seal) {
+    fn apply_mask_impl(&mut self, other: Self, mask: Self::Mask) {
         if mask.0 .0 {
             self.a = other.a;
         }

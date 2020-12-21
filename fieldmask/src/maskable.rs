@@ -1,11 +1,6 @@
-use std::{
-    marker::PhantomData,
-    ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign},
-};
+use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign};
 
 use crate::FieldMask;
-
-pub struct Seal<'a>(PhantomData<&'a ()>);
 
 pub trait Maskable: Sized {
     type Mask: Default + BitAnd + BitAndAssign + BitOr + BitOrAssign + BitXor + BitXorAssign;
@@ -28,20 +23,7 @@ pub trait Maskable: Sized {
     }
 
     /// Implementation of the application process of a mask.
-    ///
-    /// _seal is here to ensure that this function can only be called by apply_mask.
-    /// You should ignore _seal when implementing this function.
-    ///
-    /// Because
-    /// 1. FieldMask can only be obtained from deserialize_mask.
-    /// 2. deserialize_mask can't have a custom implementation.
-    /// 3. deserialize_mask wraps the mask  from deserialize_mask_impl into FieldMask.
-    /// 4. apply_mask_impl can only be called by apply_mask.
-    /// 5. apply_mask can't have a custom implementation.
-    /// 6. apply_mask unwraps the mask from FieldMask and passes it to apply_mask_impl.
-    ///
-    /// mask passed to this function can only be generated from deserialize_mask_impl.
-    fn apply_mask_impl(&mut self, other: Self, mask: Self::Mask, _seal: Seal);
+    fn apply_mask_impl(&mut self, other: Self, mask: Self::Mask);
 
     /// Update the object according to mask.
     ///
@@ -49,8 +31,7 @@ pub trait Maskable: Sized {
     ///
     /// It takes the mask value out of FieldMask and passes it to apply_mask_impl.
     fn apply_mask(&mut self, other: Self, mask: FieldMask<Self>) {
-        let seal = Seal(PhantomData);
-        self.apply_mask_impl(other, mask.0, seal);
+        self.apply_mask_impl(other, mask.0);
     }
 }
 
@@ -67,19 +48,19 @@ where
         I::deserialize_mask_impl(field_mask)
     }
 
-    fn apply_mask_impl(&mut self, other: Self, mask: Self::Mask, _seal: Seal) {
+    fn apply_mask_impl(&mut self, other: Self, mask: Self::Mask) {
         if mask == Self::Mask::default() {
             return;
         }
         match self {
             Some(s) => match other {
-                Some(o) => s.apply_mask_impl(o, mask, _seal),
+                Some(o) => s.apply_mask_impl(o, mask),
                 None => *self = None,
             },
             None => match other {
                 Some(o) => {
                     let mut new = I::default();
-                    new.apply_mask_impl(o, mask, _seal);
+                    new.apply_mask_impl(o, mask);
                     *self = Some(new);
                 }
                 None => {}
