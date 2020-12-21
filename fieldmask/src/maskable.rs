@@ -1,9 +1,7 @@
-use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign};
-
 use crate::FieldMask;
 
 pub trait Maskable: Sized {
-    type Mask: Default + BitAnd + BitAndAssign + BitOr + BitOrAssign + BitXor + BitXorAssign;
+    type Mask;
 
     /// Implementation of the deserialization process of a mask.
     fn deserialize_mask_impl<'a, T: Iterator<Item = &'a str>>(
