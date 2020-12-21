@@ -1,12 +1,12 @@
 use fieldmask::{BitwiseWrap, Maskable};
 
 #[derive(Debug, PartialEq, Eq)]
-struct FlatStruct {
+struct Flat {
     a: u32,
     b: u32,
 }
 
-impl Maskable for FlatStruct {
+impl Maskable for Flat {
     type Mask = BitwiseWrap<(bool, bool)>;
 
     fn deserialize_mask_impl<'a, T: Iterator<Item = &'a str>>(
@@ -34,27 +34,27 @@ impl Maskable for FlatStruct {
 }
 
 #[test]
-fn flat_struct() {
-    let mut struct1 = FlatStruct { a: 1, b: 2 };
-    let struct2 = FlatStruct { a: 3, b: 4 };
+fn flat() {
+    let mut struct1 = Flat { a: 1, b: 2 };
+    let struct2 = Flat { a: 3, b: 4 };
 
-    let expected_struct = FlatStruct { a: 1, b: 4 };
+    let expected_struct = Flat { a: 1, b: 4 };
     struct1.apply_mask(
         struct2,
-        FlatStruct::deserialize_mask(vec!["b"].into_iter()).expect("unable to deserialize mask"),
+        Flat::deserialize_mask(vec!["b"].into_iter()).expect("unable to deserialize mask"),
     );
     assert_eq!(struct1, expected_struct);
 }
 
 #[test]
 fn empty_mask() {
-    let mut struct1 = FlatStruct { a: 1, b: 2 };
-    let struct2 = FlatStruct { a: 3, b: 4 };
+    let mut struct1 = Flat { a: 1, b: 2 };
+    let struct2 = Flat { a: 3, b: 4 };
 
-    let expected_struct = FlatStruct { a: 1, b: 2 };
+    let expected_struct = Flat { a: 1, b: 2 };
     struct1.apply_mask(
         struct2,
-        FlatStruct::deserialize_mask(vec![].into_iter()).expect("unable to deserialize mask"),
+        Flat::deserialize_mask(vec![].into_iter()).expect("unable to deserialize mask"),
     );
     assert_eq!(struct1, expected_struct);
 }

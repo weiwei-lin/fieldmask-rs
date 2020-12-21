@@ -1,18 +1,18 @@
 use fieldmask::{BitwiseWrap, FieldMask, Maskable};
 
 #[derive(Debug, PartialEq, Eq, Default)]
-struct ChildStruct {
+struct Child {
     a: u32,
     b: u32,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-struct ParentStruct {
-    child: Option<ChildStruct>,
+struct Parent {
+    child: Option<Child>,
     c: u32,
 }
 
-impl Maskable for ChildStruct {
+impl Maskable for Child {
     type Mask = BitwiseWrap<(bool, bool)>;
 
     fn deserialize_mask_impl<'a, T: IntoIterator<Item = &'a str>>(
@@ -39,8 +39,8 @@ impl Maskable for ChildStruct {
     }
 }
 
-impl Maskable for ParentStruct {
-    type Mask = BitwiseWrap<(FieldMask<Option<ChildStruct>>, bool)>;
+impl Maskable for Parent {
+    type Mask = BitwiseWrap<(FieldMask<Option<Child>>, bool)>;
 
     fn deserialize_mask_impl<'a, T: IntoIterator<Item = &'a str>>(
         field_mask: T,
@@ -49,11 +49,10 @@ impl Maskable for ParentStruct {
 
         for entry in field_mask {
             match entry {
-                "child" => mask.0 .0 |= !FieldMask::<Option<ChildStruct>>::default(),
+                "child" => mask.0 .0 |= !FieldMask::<Option<Child>>::default(),
                 child if child.starts_with("child.") => {
                     let child_attr = &child["child.".len()..];
-                    mask.0 .0 |=
-                        Option::<ChildStruct>::deserialize_mask(vec![child_attr].into_iter())?;
+                    mask.0 .0 |= Option::<Child>::deserialize_mask(vec![child_attr].into_iter())?;
                 }
                 "c" => mask.0 .1 |= true,
                 _ => return Err(entry),
@@ -72,23 +71,23 @@ impl Maskable for ParentStruct {
 
 #[test]
 fn optional_child() {
-    let mut struct1 = ParentStruct {
-        child: Some(ChildStruct { a: 1, b: 2 }),
+    let mut struct1 = Parent {
+        child: Some(Child { a: 1, b: 2 }),
         c: 3,
     };
-    let struct2 = ParentStruct {
-        child: Some(ChildStruct { a: 4, b: 5 }),
+    let struct2 = Parent {
+        child: Some(Child { a: 4, b: 5 }),
         c: 6,
     };
 
-    let expected_struct = ParentStruct {
-        child: Some(ChildStruct { a: 1, b: 5 }),
+    let expected_struct = Parent {
+        child: Some(Child { a: 1, b: 5 }),
         c: 6,
     };
 
     struct1.apply_mask(
         struct2,
-        ParentStruct::deserialize_mask(vec!["child.b", "c"].into_iter())
+        Parent::deserialize_mask(vec!["child.b", "c"].into_iter())
             .expect("unable to deserialize mask"),
     );
     assert_eq!(struct1, expected_struct);
@@ -96,17 +95,17 @@ fn optional_child() {
 
 #[test]
 fn other_child_is_none() {
-    let mut struct1 = ParentStruct {
-        child: Some(ChildStruct { a: 1, b: 2 }),
+    let mut struct1 = Parent {
+        child: Some(Child { a: 1, b: 2 }),
         c: 3,
     };
-    let struct2 = ParentStruct { child: None, c: 6 };
+    let struct2 = Parent { child: None, c: 6 };
 
-    let expected_struct = ParentStruct { child: None, c: 6 };
+    let expected_struct = Parent { child: None, c: 6 };
 
     struct1.apply_mask(
         struct2,
-        ParentStruct::deserialize_mask(vec!["child.b", "c"].into_iter())
+        Parent::deserialize_mask(vec!["child.b", "c"].into_iter())
             .expect("unable to deserialize mask"),
     );
     assert_eq!(struct1, expected_struct);
@@ -114,20 +113,20 @@ fn other_child_is_none() {
 
 #[test]
 fn self_child_is_none() {
-    let mut struct1 = ParentStruct { child: None, c: 3 };
-    let struct2 = ParentStruct {
-        child: Some(ChildStruct { a: 4, b: 5 }),
+    let mut struct1 = Parent { child: None, c: 3 };
+    let struct2 = Parent {
+        child: Some(Child { a: 4, b: 5 }),
         c: 6,
     };
 
-    let expected_struct = ParentStruct {
-        child: Some(ChildStruct { a: 0, b: 5 }),
+    let expected_struct = Parent {
+        child: Some(Child { a: 0, b: 5 }),
         c: 6,
     };
 
     struct1.apply_mask(
         struct2,
-        ParentStruct::deserialize_mask(vec!["child.b", "c"].into_iter())
+        Parent::deserialize_mask(vec!["child.b", "c"].into_iter())
             .expect("unable to deserialize mask"),
     );
     assert_eq!(struct1, expected_struct);
@@ -135,14 +134,14 @@ fn self_child_is_none() {
 
 #[test]
 fn both_children_are_none() {
-    let mut struct1 = ParentStruct { child: None, c: 3 };
-    let struct2 = ParentStruct { child: None, c: 6 };
+    let mut struct1 = Parent { child: None, c: 3 };
+    let struct2 = Parent { child: None, c: 6 };
 
-    let expected_struct = ParentStruct { child: None, c: 6 };
+    let expected_struct = Parent { child: None, c: 6 };
 
     struct1.apply_mask(
         struct2,
-        ParentStruct::deserialize_mask(vec!["child.b", "c"].into_iter())
+        Parent::deserialize_mask(vec!["child.b", "c"].into_iter())
             .expect("unable to deserialize mask"),
     );
     assert_eq!(struct1, expected_struct);
@@ -150,37 +149,37 @@ fn both_children_are_none() {
 
 #[test]
 fn no_mask_applied_to_child() {
-    let mut struct1 = ParentStruct {
-        child: Some(ChildStruct { a: 1, b: 2 }),
+    let mut struct1 = Parent {
+        child: Some(Child { a: 1, b: 2 }),
         c: 3,
     };
-    let struct2 = ParentStruct { child: None, c: 6 };
+    let struct2 = Parent { child: None, c: 6 };
 
-    let expected_struct = ParentStruct {
-        child: Some(ChildStruct { a: 1, b: 2 }),
+    let expected_struct = Parent {
+        child: Some(Child { a: 1, b: 2 }),
         c: 6,
     };
 
     struct1.apply_mask(
         struct2,
-        ParentStruct::deserialize_mask(vec!["c"].into_iter()).expect("unable to deserialize mask"),
+        Parent::deserialize_mask(vec!["c"].into_iter()).expect("unable to deserialize mask"),
     );
     assert_eq!(struct1, expected_struct);
 }
 
 #[test]
 fn full_child_mask() {
-    let mut struct1 = ParentStruct {
-        child: Some(ChildStruct { a: 1, b: 2 }),
+    let mut struct1 = Parent {
+        child: Some(Child { a: 1, b: 2 }),
         c: 3,
     };
-    let struct2 = ParentStruct { child: None, c: 6 };
+    let struct2 = Parent { child: None, c: 6 };
 
-    let expected_struct = ParentStruct { child: None, c: 6 };
+    let expected_struct = Parent { child: None, c: 6 };
 
     struct1.apply_mask(
         struct2,
-        ParentStruct::deserialize_mask(vec!["child", "c"].into_iter())
+        Parent::deserialize_mask(vec!["child", "c"].into_iter())
             .expect("unable to deserialize mask"),
     );
     assert_eq!(struct1, expected_struct);
