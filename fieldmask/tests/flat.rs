@@ -1,8 +1,8 @@
 use std::convert::TryFrom;
 
-use fieldmask::{FieldMask, FieldMaskInput, Maskable};
+use fieldmask::{AbsoluteMaskable, FieldMask, FieldMaskInput, Maskable};
 
-#[derive(Debug, PartialEq, Maskable)]
+#[derive(Debug, PartialEq, Maskable, AbsoluteMaskable)]
 struct Flat {
     a: u32,
     b: u32,

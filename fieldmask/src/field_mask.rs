@@ -5,14 +5,14 @@ use std::{
 
 use derive_more::{AsMut, AsRef, Deref, DerefMut, From};
 
-use crate::maskable::Maskable;
+use crate::maskable::{AbsoluteMaskable, Maskable};
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct FieldMask<T: Maskable>(T::Mask);
 
 impl<T: Maskable> FieldMask<T> {
     pub fn try_bitand_assign<'a, I: Iterator<Item = &'a str>>(&mut self, rhs: I) -> Result<(), ()> {
-        T::deserialize_mask(&mut self.0, rhs)
+        T::deserialize_mask(&mut self.0, rhs.peekable())
     }
 }
 
@@ -35,7 +35,7 @@ where
     }
 }
 
-impl<T: Maskable> FieldMask<T> {
+impl<T: AbsoluteMaskable> FieldMask<T> {
     /// Update the object according to mask.
     ///
     /// It takes the mask value out of FieldMask and passes it to apply_mask_impl.

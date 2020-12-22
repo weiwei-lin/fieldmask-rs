@@ -1,11 +1,19 @@
-use std::convert::TryFrom;
+use std::{convert::TryFrom, iter::Peekable};
 
-use fieldmask::{BitwiseWrap, FieldMask, FieldMaskInput, Maskable};
+use fieldmask::{
+    AbsoluteMaskable, BitwiseWrap, FieldMask, FieldMaskInput, Maskable, OptionalMaskable,
+};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Maskable, OptionalMaskable)]
 enum OneOf {
     A(String),
     B(String),
+}
+
+impl Default for OneOf {
+    fn default() -> Self {
+        Self::A(String::default())
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -15,39 +23,30 @@ struct Parent {
 }
 
 impl Maskable for Parent {
-    type Mask = BitwiseWrap<(FieldMask<String>, FieldMask<String>, FieldMask<u32>)>;
+    type Mask = BitwiseWrap<(FieldMask<Option<OneOf>>, FieldMask<u32>)>;
 
     fn deserialize_mask<'a, I: Iterator<Item = &'a str>>(
         mask: &mut Self::Mask,
-        mut field_mask_segs: I,
+        mut field_mask_segs: Peekable<I>,
     ) -> Result<(), ()> {
-        let seg = field_mask_segs.next();
+        let seg = field_mask_segs.peek();
         match seg {
             None => *mask = !Self::Mask::default(),
-            Some("a") => mask.0 .0.try_bitand_assign(field_mask_segs)?,
-            Some("b") => mask.0 .1.try_bitand_assign(field_mask_segs)?,
-            Some("c") => mask.0 .2.try_bitand_assign(field_mask_segs)?,
+            Some(&"a") | Some(&"b") => mask.0 .0.try_bitand_assign(field_mask_segs)?,
+            Some(&"c") => {
+                field_mask_segs.next().expect("should not be None");
+                mask.0 .1.try_bitand_assign(field_mask_segs)?
+            }
             Some(_) => return Err(()),
         }
         Ok(())
     }
+}
 
+impl AbsoluteMaskable for Parent {
     fn apply_mask(&mut self, src: Self, mask: Self::Mask) {
-        match src.one_of {
-            Some(OneOf::A(a)) if mask.0 .0 != FieldMask::default() => {
-                self.one_of = Some(OneOf::A(a))
-            }
-            Some(OneOf::B(b)) if mask.0 .1 != FieldMask::default() => {
-                self.one_of = Some(OneOf::B(b))
-            }
-            _ if mask.0 .0 != FieldMask::default() || mask.0 .1 != FieldMask::default() => {
-                self.one_of = None
-            }
-            _ => (),
-        }
-        if mask.0 .2 != FieldMask::default() {
-            self.c = src.c;
-        }
+        mask.0 .0.apply(&mut self.one_of, src.one_of);
+        mask.0 .1.apply(&mut self.c, src.c);
     }
 }
 

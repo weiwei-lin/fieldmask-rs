@@ -1,4 +1,7 @@
-use std::ops::{BitOr, Not};
+use std::{
+    iter::Peekable,
+    ops::{BitOr, Not},
+};
 
 pub trait Maskable: Sized {
     type Mask: Default + Not + BitOr;
@@ -11,11 +14,29 @@ pub trait Maskable: Sized {
     /// which a FieldMask can be obtained.
     fn deserialize_mask<'a, I: Iterator<Item = &'a str>>(
         mask: &mut Self::Mask,
-        field_mask_segs: I,
+        field_mask_segs: Peekable<I>,
     ) -> Result<(), ()>;
+}
 
+pub trait AbsoluteMaskable: Maskable {
     /// Implementation of the application process of a mask.
     fn apply_mask(&mut self, src: Self, mask: Self::Mask);
+}
+
+pub trait OptionalMaskable: Maskable {
+    /// Implementation of the application process of a mask.
+    fn apply_mask(&mut self, src: Self, mask: Self::Mask) -> bool;
+}
+
+impl<T: AbsoluteMaskable> OptionalMaskable for T
+where
+    T: Default,
+    T::Mask: PartialEq,
+{
+    fn apply_mask(&mut self, src: Self, mask: Self::Mask) -> bool {
+        self.apply_mask(src, mask);
+        true
+    }
 }
 
 impl<T: Maskable> Maskable for Option<T>
@@ -27,25 +48,38 @@ where
 
     fn deserialize_mask<'a, I: Iterator<Item = &'a str>>(
         mask: &mut Self::Mask,
-        field_mask_segs: I,
+        field_mask_segs: Peekable<I>,
     ) -> Result<(), ()> {
         T::deserialize_mask(mask, field_mask_segs)
     }
+}
 
+impl<T: OptionalMaskable> AbsoluteMaskable for Option<T>
+where
+    T: Default,
+    T::Mask: PartialEq,
+{
     fn apply_mask(&mut self, src: Self, mask: Self::Mask) {
         if mask == Self::Mask::default() {
             return;
         }
         match self {
             Some(s) => match src {
-                Some(o) => s.apply_mask(o, mask),
+                Some(o) => {
+                    if !s.apply_mask(o, mask) {
+                        *self = None;
+                    }
+                }
                 None => *self = None,
             },
             None => match src {
                 Some(o) => {
                     let mut new = T::default();
-                    new.apply_mask(o, mask);
-                    *self = Some(new);
+                    if new.apply_mask(o, mask) {
+                        *self = Some(new);
+                    } else {
+                        *self = None;
+                    }
                 }
                 None => {}
             },
@@ -60,7 +94,7 @@ macro_rules! maskable {
 
             fn deserialize_mask<'a, I: Iterator<Item = &'a str>>(
                 mask: &mut Self::Mask,
-                mut field_mask_segs: I,
+                mut field_mask_segs: Peekable<I>,
             ) -> Result<(), ()> {
                 match field_mask_segs.next() {
                     Some(_) => return Err(()),
@@ -68,7 +102,9 @@ macro_rules! maskable {
                 }
                 Ok(())
             }
+        }
 
+        impl AbsoluteMaskable for $T {
             fn apply_mask(&mut self, other: Self, mask: Self::Mask) {
                 if mask {
                     *self = other;
