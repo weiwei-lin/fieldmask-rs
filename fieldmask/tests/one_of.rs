@@ -16,7 +16,7 @@ impl Default for OneOf {
 
 #[derive(Debug, PartialEq, Maskable, AbsoluteMaskable)]
 struct Parent {
-    #[flatten]
+    #[fieldmask(flatten)]
     one_of: Option<OneOf>,
     c: u32,
 }
