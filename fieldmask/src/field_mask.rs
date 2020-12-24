@@ -11,8 +11,8 @@ use crate::maskable::{AbsoluteMaskable, Maskable};
 pub struct FieldMask<T: Maskable>(T::Mask);
 
 impl<T: Maskable> FieldMask<T> {
-    pub fn try_bitand_assign<'a, I: Iterator<Item = &'a str>>(&mut self, rhs: I) -> Result<(), ()> {
-        T::deserialize_mask(&mut self.0, rhs.peekable())
+    pub fn try_bitand_assign<'a>(&mut self, rhs: &[&'a str]) -> Result<(), u8> {
+        T::deserialize_mask(&mut self.0, rhs)
     }
 }
 
@@ -28,7 +28,7 @@ where
     fn try_from(value: FieldMaskInput<I>) -> Result<Self, Self::Error> {
         let mut mask = Self::default();
         for entry in value.0 {
-            mask.try_bitand_assign(entry.split('.'))
+            mask.try_bitand_assign(&entry.split('.').collect::<Vec<_>>())
                 .map_err(|_| entry)?;
         }
         Ok(mask)

@@ -1,8 +1,6 @@
-use std::{convert::TryFrom, iter::Peekable};
+use std::convert::TryFrom;
 
-use fieldmask::{
-    AbsoluteMaskable, BitwiseWrap, FieldMask, FieldMaskInput, Maskable, OptionalMaskable,
-};
+use fieldmask::{AbsoluteMaskable, FieldMask, FieldMaskInput, Maskable, OptionalMaskable};
 
 #[derive(Debug, PartialEq, Maskable, OptionalMaskable)]
 enum OneOf {
@@ -16,38 +14,11 @@ impl Default for OneOf {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Maskable, AbsoluteMaskable)]
 struct Parent {
+    #[flatten]
     one_of: Option<OneOf>,
     c: u32,
-}
-
-impl Maskable for Parent {
-    type Mask = BitwiseWrap<(FieldMask<Option<OneOf>>, FieldMask<u32>)>;
-
-    fn deserialize_mask<'a, I: Iterator<Item = &'a str>>(
-        mask: &mut Self::Mask,
-        mut field_mask_segs: Peekable<I>,
-    ) -> Result<(), ()> {
-        let seg = field_mask_segs.peek();
-        match seg {
-            None => *mask = !Self::Mask::default(),
-            Some(&"a") | Some(&"b") => mask.0 .0.try_bitand_assign(field_mask_segs)?,
-            Some(&"c") => {
-                field_mask_segs.next().expect("should not be None");
-                mask.0 .1.try_bitand_assign(field_mask_segs)?
-            }
-            Some(_) => return Err(()),
-        }
-        Ok(())
-    }
-}
-
-impl AbsoluteMaskable for Parent {
-    fn apply_mask(&mut self, src: Self, mask: Self::Mask) {
-        mask.0 .0.apply(&mut self.one_of, src.one_of);
-        mask.0 .1.apply(&mut self.c, src.c);
-    }
 }
 
 #[test]

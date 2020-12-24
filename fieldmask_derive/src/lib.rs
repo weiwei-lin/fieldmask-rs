@@ -1,10 +1,11 @@
 use std::unimplemented;
 
 use proc_macro::TokenStream;
+use proc_macro2::Span;
 use quote::quote;
-use syn::{Data, DeriveInput, Fields, Ident, Index};
+use syn::{Data, DeriveInput, Fields, Ident, Index, Meta};
 
-#[proc_macro_derive(Maskable)]
+#[proc_macro_derive(Maskable, attributes(flatten))]
 pub fn derive_maskable(input: TokenStream) -> TokenStream {
     let ast: DeriveInput = syn::parse(input).unwrap();
     let (impl_generics, ty_generics, where_clauses) = &ast.generics.split_for_impl();
@@ -15,7 +16,14 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
                 .named
                 .iter()
                 .enumerate()
-                .map(|(i, f)| (i, f.ident.clone().expect("should be named"), &f.ty))
+                .map(|(i, f)| {
+                    (
+                        i,
+                        f.ident.clone().expect("should be named"),
+                        &f.ty,
+                        &f.attrs,
+                    )
+                })
                 .collect::<Vec<_>>(),
             _ => unimplemented!(),
         },
@@ -34,37 +42,53 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
                         }
                         _ => unimplemented!(),
                     },
+                    &v.attrs,
                 )
             });
             a.collect::<Vec<_>>()
         }
         _ => unimplemented!(),
     };
-    let field_types1 = fields.iter().map(|(_i, _ident, ty)| ty);
-    let field_names1 = fields.iter().map(|(_i, ident, _ty)| ident);
-    let field_indices1 = fields.iter().map(|(i, _field, _ty)| Index::from(*i));
-    // let field_attrs1 = fields.iter().map(|field| {
-    //     field
-    //         .attrs
-    //         .iter()
-    //         .map(|attr| attr.parse_meta())
-    //         .collect::<Vec<_>>()
-    // });
+    let field_types1 = fields.iter().map(|(_i, _ident, ty, _attrs)| ty);
+    let match_arms = fields.iter().map(|(i, ident, _ty, attrs)| {
+        let index = Index::from(*i);
+        let is_flatten = attrs
+            .iter()
+            .map(|attr| attr.parse_meta())
+            .collect::<Result<Vec<_>, _>>()
+            .expect("failed to parse meta")
+            .iter()
+            .any(|m| match m {
+                Meta::Path(p) => {
+                    p.get_ident().expect("unable to get ident")
+                        == &Ident::new("flatten", Span::call_site())
+                }
+                _ => panic!("wrong meta"),
+            });
+        if is_flatten {
+            quote! {
+                _ if mask.0.#index.try_bitand_assign(field_mask_segs).map(|_| true).or_else(|e| if e== 0 { Ok(false)} else {Err(e)})? => (),
+            }
+        } else {
+            quote! {
+                [stringify!(#ident), tail @ ..] => mask.0.#index.try_bitand_assign(tail).map_err(|i| i + 1)?,
+            }
+        }
+    });
     (quote! {
         impl#impl_generics ::fieldmask::Maskable for #name#ty_generics
         #where_clauses
         {
             type Mask = ::fieldmask::BitwiseWrap<(#(::fieldmask::FieldMask<#field_types1>,)*)>;
 
-            fn deserialize_mask<'a, I: ::core::iter::Iterator<Item = &'a ::core::primitive::str>>(
+            fn deserialize_mask(
                 mask: &mut Self::Mask,
-                mut field_mask_segs: ::core::iter::Peekable<I>,
-            ) -> ::core::result::Result<(), ()> {
-                let seg = ::core::iter::Iterator::next(&mut field_mask_segs);
-                match seg {
-                    ::core::option::Option::None => *mask = !Self::Mask::default(),
-                    #(::core::option::Option::Some(stringify!(#field_names1)) => mask.0.#field_indices1.try_bitand_assign(field_mask_segs)?,)*
-                    ::core::option::Option::Some(_) => return ::core::result::Result::Err(()),
+                field_mask_segs: &[&::core::primitive::str],
+            ) -> ::core::result::Result<(), u8> {
+                match field_mask_segs {
+                    [] => *mask = !Self::Mask::default(),
+                    #(#match_arms)*
+                    _ => return ::core::result::Result::Err(0),
                 }
                 Ok(())
             }

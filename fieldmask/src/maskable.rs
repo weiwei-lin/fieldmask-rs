@@ -1,7 +1,4 @@
-use std::{
-    iter::Peekable,
-    ops::{BitOr, Not},
-};
+use std::ops::{BitOr, Not};
 
 pub trait Maskable: Sized {
     type Mask: Default + Not + BitOr;
@@ -12,10 +9,10 @@ pub trait Maskable: Sized {
     ///
     /// This is the only public interface, other than bitwise, default and not operations, from
     /// which a FieldMask can be obtained.
-    fn deserialize_mask<'a, I: Iterator<Item = &'a str>>(
+    fn deserialize_mask<'a>(
         mask: &mut Self::Mask,
-        field_mask_segs: Peekable<I>,
-    ) -> Result<(), ()>;
+        field_mask_segs: &'a [&'a str],
+    ) -> Result<(), u8>;
 }
 
 pub trait AbsoluteMaskable: Maskable {
@@ -46,10 +43,7 @@ where
 {
     type Mask = T::Mask;
 
-    fn deserialize_mask<'a, I: Iterator<Item = &'a str>>(
-        mask: &mut Self::Mask,
-        field_mask_segs: Peekable<I>,
-    ) -> Result<(), ()> {
+    fn deserialize_mask(mask: &mut Self::Mask, field_mask_segs: &[&str]) -> Result<(), u8> {
         T::deserialize_mask(mask, field_mask_segs)
     }
 }
@@ -92,15 +86,13 @@ macro_rules! maskable {
         impl Maskable for $T {
             type Mask = bool;
 
-            fn deserialize_mask<'a, I: Iterator<Item = &'a str>>(
-                mask: &mut Self::Mask,
-                mut field_mask_segs: Peekable<I>,
-            ) -> Result<(), ()> {
-                match field_mask_segs.next() {
-                    Some(_) => return Err(()),
-                    None => *mask = true,
+            fn deserialize_mask(mask: &mut Self::Mask, field_mask_segs: &[&str]) -> Result<(), u8> {
+                if field_mask_segs.len() == 0 {
+                    *mask = true;
+                    Ok(())
+                } else {
+                    Err(0)
                 }
-                Ok(())
             }
         }
 
