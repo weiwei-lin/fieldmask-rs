@@ -174,14 +174,14 @@ pub struct Field<'a> {
 }
 
 pub struct ItemInfo<'a> {
-    pub name: &'a Ident,
+    pub ident: &'a Ident,
     pub generics: &'a Generics,
     pub fields: Vec<Field<'a>>,
 }
 
 impl ItemEnum {
     pub fn get_info(&self) -> ItemInfo {
-        let name = &self.ident;
+        let ident = &self.ident;
         let generics = &self.generics;
         let fields = self
             .variants
@@ -193,7 +193,7 @@ impl ItemEnum {
             })
             .collect::<Vec<_>>();
         ItemInfo {
-            name,
+            ident,
             generics,
             fields,
         }
@@ -202,7 +202,7 @@ impl ItemEnum {
 
 impl ItemStruct {
     pub fn get_info(&self) -> ItemInfo {
-        let name = &self.ident;
+        let ident = &self.ident;
         let generics = &self.generics;
         let fields = self
             .fields
@@ -214,7 +214,7 @@ impl ItemStruct {
             })
             .collect::<Vec<_>>();
         ItemInfo {
-            name,
+            ident,
             generics,
             fields,
         }

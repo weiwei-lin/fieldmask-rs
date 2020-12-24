@@ -1,5 +1,15 @@
 use std::ops::{BitOr, Not};
 
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+#[error(r#"there's no "{field}" in `{type_str}`"#)]
+pub struct DeserializeMaskError<'a> {
+    pub type_str: &'a str,
+    pub field: &'a str,
+    pub depth: u8,
+}
+
 pub trait Maskable: Sized {
     type Mask: Default + Not + BitOr;
 
@@ -11,8 +21,8 @@ pub trait Maskable: Sized {
     /// which a FieldMask can be obtained.
     fn deserialize_mask<'a>(
         mask: &mut Self::Mask,
-        field_mask_segs: &'a [&'a str],
-    ) -> Result<(), u8>;
+        field_mask_segs: &[&'a str],
+    ) -> Result<(), DeserializeMaskError<'a>>;
 }
 
 pub trait AbsoluteMaskable: Maskable {
@@ -43,7 +53,10 @@ where
 {
     type Mask = T::Mask;
 
-    fn deserialize_mask(mask: &mut Self::Mask, field_mask_segs: &[&str]) -> Result<(), u8> {
+    fn deserialize_mask<'a>(
+        mask: &mut Self::Mask,
+        field_mask_segs: &[&'a str],
+    ) -> Result<(), DeserializeMaskError<'a>> {
         T::deserialize_mask(mask, field_mask_segs)
     }
 }
@@ -86,12 +99,19 @@ macro_rules! maskable {
         impl Maskable for $T {
             type Mask = bool;
 
-            fn deserialize_mask(mask: &mut Self::Mask, field_mask_segs: &[&str]) -> Result<(), u8> {
+            fn deserialize_mask<'a>(
+                mask: &mut Self::Mask,
+                field_mask_segs: &[&'a str],
+            ) -> Result<(), DeserializeMaskError<'a>> {
                 if field_mask_segs.len() == 0 {
                     *mask = true;
                     Ok(())
                 } else {
-                    Err(0)
+                    Err(DeserializeMaskError {
+                        type_str: stringify!($T),
+                        field: field_mask_segs[0],
+                        depth: 0,
+                    })
                 }
             }
         }

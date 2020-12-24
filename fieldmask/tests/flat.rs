@@ -37,7 +37,9 @@ fn empty_mask() {
 #[test]
 fn nested_mask() {
     assert_eq!(
-        FieldMask::<Flat>::try_from(FieldMaskInput(vec!["a.b"].into_iter())),
-        Err("a.b")
+        FieldMask::<Flat>::try_from(FieldMaskInput(vec!["a.b"].into_iter()))
+            .expect_err("should fail to parse fieldmask")
+            .entry,
+        "a.b",
     );
 }

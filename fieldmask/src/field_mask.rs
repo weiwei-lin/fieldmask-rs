@@ -1,35 +1,46 @@
-use std::{
+use core::{
     convert::TryFrom,
     ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not},
 };
 
 use derive_more::{AsMut, AsRef, Deref, DerefMut, From};
+use thiserror::Error;
 
-use crate::maskable::{AbsoluteMaskable, Maskable};
+use crate::maskable::{AbsoluteMaskable, DeserializeMaskError, Maskable};
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct FieldMask<T: Maskable>(T::Mask);
 
 impl<T: Maskable> FieldMask<T> {
-    pub fn try_bitand_assign<'a>(&mut self, rhs: &[&'a str]) -> Result<(), u8> {
+    pub fn try_bitand_assign<'a>(
+        &mut self,
+        rhs: &[&'a str],
+    ) -> Result<(), DeserializeMaskError<'a>> {
         T::deserialize_mask(&mut self.0, rhs)
     }
 }
 
 pub struct FieldMaskInput<T>(pub T);
 
+#[derive(Debug, Error)]
+#[error(r#"can not parse fieldmask "{entry}"; {err}"#)]
+pub struct DeserializeFieldMaskError<'a> {
+    pub entry: &'a str,
+    err: DeserializeMaskError<'a>,
+}
+
 impl<'a, I, T> TryFrom<FieldMaskInput<I>> for FieldMask<T>
 where
     I: Iterator<Item = &'a str>,
     T: Maskable,
 {
-    type Error = &'a str;
+    type Error = DeserializeFieldMaskError<'a>;
 
     fn try_from(value: FieldMaskInput<I>) -> Result<Self, Self::Error> {
         let mut mask = Self::default();
         for entry in value.0 {
             mask.try_bitand_assign(&entry.split('.').collect::<Vec<_>>())
-                .map_err(|_| entry)?;
+                .map_err(|err| DeserializeFieldMaskError { entry, err })?;
         }
         Ok(mask)
     }
