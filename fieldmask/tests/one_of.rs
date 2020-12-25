@@ -6,6 +6,7 @@ use fieldmask::{AbsoluteMaskable, FieldMask, FieldMaskInput, Maskable, OptionalM
 enum OneOf {
     A(String),
     B(String),
+    AnotherCase(String),
 }
 
 impl Default for OneOf {
@@ -98,6 +99,25 @@ fn self_none() {
     };
 
     FieldMask::try_from(FieldMaskInput(vec!["a", "c"].into_iter()))
+        .expect("unable to deserialize mask")
+        .apply(&mut struct1, struct2);
+    assert_eq!(struct1, expected_struct);
+}
+
+#[test]
+fn snake_case() {
+    let mut struct1 = Parent { one_of: None, c: 1 };
+    let struct2 = Parent {
+        one_of: Some(OneOf::AnotherCase("a2".into())),
+        c: 2,
+    };
+
+    let expected_struct = Parent {
+        one_of: Some(OneOf::AnotherCase("a2".into())),
+        c: 2,
+    };
+
+    FieldMask::try_from(FieldMaskInput(vec!["another_case", "c"].into_iter()))
         .expect("unable to deserialize mask")
         .apply(&mut struct1, struct2);
     assert_eq!(struct1, expected_struct);
