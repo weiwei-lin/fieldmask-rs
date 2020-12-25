@@ -13,11 +13,9 @@ pub trait Maskable: Sized {
 
     /// Deserialize a mask and return a FieldMask.
     ///
-    /// Call deserialize_mask_impl to compute the mask and wrap the mask in FieldMask.
-    ///
     /// This is the only public interface, other than bitwise, default and not operations, from
     /// which a FieldMask can be obtained.
-    fn deserialize_mask<'a>(
+    fn try_bitor_assign_mask<'a>(
         mask: &mut Self::Mask,
         field_mask_segs: &[&'a str],
     ) -> Result<(), DeserializeMaskError<'a>>;
@@ -51,11 +49,11 @@ where
 {
     type Mask = T::Mask;
 
-    fn deserialize_mask<'a>(
+    fn try_bitor_assign_mask<'a>(
         mask: &mut Self::Mask,
         field_mask_segs: &[&'a str],
     ) -> Result<(), DeserializeMaskError<'a>> {
-        T::deserialize_mask(mask, field_mask_segs)
+        T::try_bitor_assign_mask(mask, field_mask_segs)
     }
 }
 
@@ -97,7 +95,7 @@ macro_rules! maskable {
         impl Maskable for $T {
             type Mask = bool;
 
-            fn deserialize_mask<'a>(
+            fn try_bitor_assign_mask<'a>(
                 mask: &mut Self::Mask,
                 field_mask_segs: &[&'a str],
             ) -> Result<(), DeserializeMaskError<'a>> {

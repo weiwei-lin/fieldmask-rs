@@ -24,7 +24,7 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
                 _ if mask
                     .0
                     .#index
-                    .try_bitand_assign(field_mask_segs)
+                    .try_bitor_assign(field_mask_segs)
                     .map(|_| true)
                     .or_else(|l| if l.depth == 0 { Ok(false) } else { Err(l) })? =>
                 {
@@ -34,7 +34,7 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
         } else {
             let prefix = to_snake_case(&field.ident.to_string());
             quote! {
-                [#prefix, tail @ ..] => mask.0.#index.try_bitand_assign(tail).map_err(|mut e| {
+                [#prefix, tail @ ..] => mask.0.#index.try_bitor_assign(tail).map_err(|mut e| {
                     e.depth += 1;
                     e
                 })?,
@@ -48,7 +48,7 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
         {
             type Mask = ::fieldmask::BitwiseWrap<(#(::fieldmask::FieldMask<#field_types>,)*)>;
 
-            fn deserialize_mask<'a>(
+            fn try_bitor_assign_mask<'a>(
                 mask: &mut Self::Mask,
                 field_mask_segs: &[&'a ::core::primitive::str],
             ) -> ::core::result::Result<(), ::fieldmask::DeserializeMaskError<'a>> {
