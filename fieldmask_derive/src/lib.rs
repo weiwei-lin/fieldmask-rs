@@ -118,7 +118,7 @@ pub fn derive_optional_maskable(input: TokenStream) -> TokenStream {
                 let src_ty = src_field.ty;
                 quote! {
                     Self::#src_ident(s) if mask.0.#index != ::fieldmask::FieldMask::default() => {
-                        let mut new = #src_ty::default();
+                        let mut new = <#src_ty>::default();
                         mask.0.#index.apply(&mut new, s);
                         *self = Self::#src_ident(new);
                     }

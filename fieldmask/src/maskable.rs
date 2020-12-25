@@ -1,5 +1,3 @@
-use std::ops::{BitOr, Not};
-
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -11,7 +9,7 @@ pub struct DeserializeMaskError<'a> {
 }
 
 pub trait Maskable: Sized {
-    type Mask: Default + Not + BitOr;
+    type Mask;
 
     /// Deserialize a mask and return a FieldMask.
     ///
@@ -64,7 +62,7 @@ where
 impl<T: OptionalMaskable> AbsoluteMaskable for Option<T>
 where
     T: Default,
-    T::Mask: PartialEq,
+    T::Mask: PartialEq + Default,
 {
     fn apply_mask(&mut self, src: Self, mask: Self::Mask) {
         if mask == Self::Mask::default() {

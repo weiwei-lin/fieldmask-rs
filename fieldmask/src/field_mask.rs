@@ -33,6 +33,7 @@ impl<'a, I, T> TryFrom<FieldMaskInput<I>> for FieldMask<T>
 where
     I: Iterator<Item = &'a str>,
     T: Maskable,
+    T::Mask: Default,
 {
     type Error = DeserializeFieldMaskError<'a>;
 
