@@ -49,8 +49,6 @@ where
 
 impl<T: AbsoluteMaskable> FieldMask<T> {
     /// Update the object according to mask.
-    ///
-    /// It takes the mask value out of FieldMask and passes it to apply_mask_impl.
     pub fn apply(self, target: &mut T, src: T) {
         T::apply_mask(target, src, self.0);
     }
