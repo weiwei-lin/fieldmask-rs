@@ -28,17 +28,17 @@ pub trait Maskable: Sized {
     ) -> Result<(), DeserializeMaskError<'a>>;
 }
 
-pub trait AbsoluteMaskable: Maskable {
+pub trait SelfMaskable: Maskable {
     /// Implementation of the application process of a mask.
     fn apply_mask(&mut self, src: Self, mask: Self::Mask);
 }
 
-pub trait OptionalMaskable: Maskable {
+pub trait OptionMaskable: Maskable {
     /// Implementation of the application process of a mask.
     fn apply_mask(&mut self, src: Self, mask: Self::Mask) -> bool;
 }
 
-impl<T: AbsoluteMaskable> OptionalMaskable for T
+impl<T: SelfMaskable> OptionMaskable for T
 where
     T: Default,
     T::Mask: PartialEq,
@@ -64,7 +64,7 @@ where
     }
 }
 
-impl<T: OptionalMaskable> AbsoluteMaskable for Option<T>
+impl<T: OptionMaskable> SelfMaskable for Option<T>
 where
     T: Default,
     T::Mask: PartialEq + Default,
@@ -119,7 +119,7 @@ macro_rules! maskable {
             }
         }
 
-        impl AbsoluteMaskable for $T {
+        impl SelfMaskable for $T {
             fn apply_mask(&mut self, other: Self, mask: Self::Mask) {
                 if mask {
                     *self = other;

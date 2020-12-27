@@ -5,9 +5,9 @@ A rust library that supports (de)serializing/applying fieldmask.
 ```rust
 use std::convert::TryFrom;
 
-use fieldmask::{AbsoluteMaskable, FieldMask, FieldMaskInput, Maskable, OptionalMaskable};
+use fieldmask::{SelfMaskable, FieldMask, FieldMaskInput, Maskable, OptionMaskable};
 
-#[derive(Debug, PartialEq, Maskable, AbsoluteMaskable)]
+#[derive(Debug, PartialEq, Maskable, SelfMaskable)]
 struct Parent {
     primitive: String,
     child_1: Child,
@@ -16,13 +16,13 @@ struct Parent {
     one_of_field: Option<OneOfField>,
 }
 
-#[derive(Debug, PartialEq, Maskable, AbsoluteMaskable)]
+#[derive(Debug, PartialEq, Maskable, SelfMaskable)]
 struct Child {
     field_one: String,
     field_two: u32,
 }
 
-#[derive(Debug, PartialEq, Maskable, OptionalMaskable)]
+#[derive(Debug, PartialEq, Maskable, OptionMaskable)]
 enum OneOfField {
     VariantOne(String),
     VariantTwo(u32),

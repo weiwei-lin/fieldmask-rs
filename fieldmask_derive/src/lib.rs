@@ -68,7 +68,7 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
     .into()
 }
 
-#[proc_macro_derive(AbsoluteMaskable)]
+#[proc_macro_derive(SelfMaskable)]
 pub fn derive_absolute_maskable(input: TokenStream) -> TokenStream {
     let input: Item = parse_macro_input!(input);
     let ItemInfo {
@@ -82,7 +82,7 @@ pub fn derive_absolute_maskable(input: TokenStream) -> TokenStream {
     let field_idents = fields.iter().map(|field| &field.ident).collect::<Vec<_>>();
 
     (quote! {
-        impl#impl_generics ::fieldmask::AbsoluteMaskable for #ident#ty_generics
+        impl#impl_generics ::fieldmask::SelfMaskable for #ident#ty_generics
         #where_clauses
         {
             fn apply_mask(&mut self, src: Self, mask: Self::Mask) {
@@ -93,7 +93,7 @@ pub fn derive_absolute_maskable(input: TokenStream) -> TokenStream {
     .into()
 }
 
-#[proc_macro_derive(OptionalMaskable)]
+#[proc_macro_derive(OptionMaskable)]
 pub fn derive_optional_maskable(input: TokenStream) -> TokenStream {
     let input: Item = parse_macro_input!(input);
     let ItemInfo {
@@ -134,7 +134,7 @@ pub fn derive_optional_maskable(input: TokenStream) -> TokenStream {
     });
 
     (quote! {
-        impl#impl_generics ::fieldmask::OptionalMaskable for #ident#ty_generics
+        impl#impl_generics ::fieldmask::OptionMaskable for #ident#ty_generics
         #where_clauses
         {
             fn apply_mask(&mut self, src: Self, mask: Self::Mask) -> bool {

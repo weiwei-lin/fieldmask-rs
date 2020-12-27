@@ -6,7 +6,7 @@ use core::{
 use derive_more::{AsMut, AsRef, Deref, DerefMut, From};
 use thiserror::Error;
 
-use crate::maskable::{AbsoluteMaskable, DeserializeMaskError, Maskable};
+use crate::maskable::{DeserializeMaskError, Maskable, SelfMaskable};
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct FieldMask<T: Maskable>(T::Mask);
@@ -47,7 +47,7 @@ where
     }
 }
 
-impl<T: AbsoluteMaskable> FieldMask<T> {
+impl<T: SelfMaskable> FieldMask<T> {
     /// Update the object according to mask.
     pub fn apply(self, target: &mut T, src: T) {
         T::apply_mask(target, src, self.0);
