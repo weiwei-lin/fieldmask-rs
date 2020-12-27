@@ -6,6 +6,14 @@ use syn::{
     Attribute, Generics, Ident, Meta, NestedMeta, Token, Type, Visibility,
 };
 
+struct Wrap<T>(pub T);
+
+impl<T: Parse> Parse for Wrap<Punctuated<T, Token![,]>> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        Ok(Self(input.parse_terminated(T::parse)?))
+    }
+}
+
 pub enum Item {
     Struct(ItemStruct),
     Enum(ItemEnum),
@@ -51,6 +59,7 @@ pub struct SingleTupleVariant {
 impl Parse for Item {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let attrs = input.call(Attribute::parse_outer)?;
+
         let vis = input.parse()?;
 
         let lookahead = input.lookahead1();
@@ -95,18 +104,6 @@ enum NamedFieldAttribute {
     Flatten,
 }
 
-struct NamedFieldAttributes {
-    attrs: Punctuated<NamedFieldAttribute, Token![,]>,
-}
-
-impl Parse for NamedFieldAttributes {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(Self {
-            attrs: input.parse_terminated(NamedFieldAttribute::parse)?,
-        })
-    }
-}
-
 impl Parse for NamedFieldAttribute {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let meta: NestedMeta = input.parse()?;
@@ -126,7 +123,7 @@ impl Parse for NamedField {
             .map(|attr| attr.parse_args())
             .collect::<syn::Result<Vec<_>>>()?
             .iter()
-            .flat_map(|attrs: &NamedFieldAttributes| &attrs.attrs)
+            .flat_map(|attrs: &Wrap<Punctuated<NamedFieldAttribute, Token![,]>>| &attrs.0)
             .any(|meta| *meta == NamedFieldAttribute::Flatten);
         Ok(NamedField {
             attrs,
