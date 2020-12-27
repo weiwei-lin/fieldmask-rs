@@ -6,6 +6,9 @@ use syn::{
     Attribute, Generics, Ident, Meta, NestedMeta, Token, Type, Visibility,
 };
 
+#[cfg(feature = "prost")]
+use syn::Lit;
+
 struct Wrap<T>(pub T);
 
 impl<T: Parse> Parse for Wrap<Punctuated<T, Token![,]>> {
@@ -119,10 +122,33 @@ impl Parse for NamedFieldAttribute {
     }
 }
 
+#[derive(PartialEq)]
+#[non_exhaustive]
+#[cfg(feature = "prost")]
+enum ProstFieldAttribute {
+    OneOf(Lit),
+    Other,
+}
+
+#[cfg(feature = "prost")]
+impl Parse for ProstFieldAttribute {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let meta: NestedMeta = input.parse()?;
+        match meta {
+            NestedMeta::Meta(Meta::NameValue(m)) if m.path.is_ident("oneof") => {
+                Ok(Self::OneOf(m.lit))
+            }
+            _ => Ok(Self::Other),
+        }
+    }
+}
+
 impl Parse for NamedField {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let attrs = input.call(Attribute::parse_outer)?;
-        let is_flatten = attrs
+
+        #[allow(unused_mut)]
+        let mut is_flatten = attrs
             .iter()
             .filter(|attr| attr.path.is_ident("fieldmask"))
             .map(|attr| attr.parse_args())
@@ -130,6 +156,23 @@ impl Parse for NamedField {
             .iter()
             .flat_map(|attrs: &Wrap<Punctuated<NamedFieldAttribute, Token![,]>>| &attrs.0)
             .any(|meta| *meta == NamedFieldAttribute::Flatten);
+
+        #[cfg(feature = "prost")]
+        {
+            is_flatten = is_flatten
+                || attrs
+                    .iter()
+                    .filter(|attr| attr.path.is_ident("prost"))
+                    .map(|attr| attr.parse_args())
+                    .collect::<syn::Result<Vec<_>>>()?
+                    .iter()
+                    .flat_map(|attrs: &Wrap<Punctuated<ProstFieldAttribute, Token![,]>>| &attrs.0)
+                    .any(|meta| match meta {
+                        ProstFieldAttribute::OneOf(_) => true,
+                        _ => false,
+                    });
+        }
+
         Ok(NamedField {
             attrs,
             vis: input.parse()?,

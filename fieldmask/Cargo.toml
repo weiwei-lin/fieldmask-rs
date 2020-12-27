@@ -4,7 +4,11 @@ version = "0.1.0"
 authors = ["Weiwei Lin <weiwei.will.lin@gmail.com>"]
 edition = "2018"
 
+[features]
+prost-integration = ["prost", "fieldmask_derive/prost"]
+
 [dependencies]
 derive_more = "0.99.11"
 fieldmask_derive = { path = "../fieldmask_derive" }
+prost = { version = "0.6.1", optional = true }
 thiserror = "1.0.22"
