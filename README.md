@@ -5,9 +5,9 @@ A rust library that supports (de)serializing/applying fieldmask.
 ```rust
 use std::convert::TryFrom;
 
-use fieldmask::{SelfMaskable, FieldMask, FieldMaskInput, Maskable, OptionMaskable};
+use fieldmask::{FieldMask, FieldMaskInput, Maskable};
 
-#[derive(Debug, PartialEq, Maskable, SelfMaskable)]
+#[derive(Debug, PartialEq, Maskable)]
 struct Parent {
     primitive: String,
     child_1: Child,
@@ -16,13 +16,13 @@ struct Parent {
     one_of_field: Option<OneOfField>,
 }
 
-#[derive(Debug, PartialEq, Maskable, SelfMaskable)]
+#[derive(Debug, PartialEq, Maskable)]
 struct Child {
     field_one: String,
     field_two: u32,
 }
 
-#[derive(Debug, PartialEq, Maskable, OptionMaskable)]
+#[derive(Debug, PartialEq, Maskable)]
 enum OneOfField {
     VariantOne(String),
     VariantTwo(u32),
@@ -78,11 +78,8 @@ fn case_1() {
         vec![
             "primitive",
             "child_1.field_two",
-            // if child properties are not specified, all properties are included.
-            "child_2",
-            // if a field is marked with `flatten`, it's properties are merged with its parents
-            // properties.
-            "variant_two",
+            "child_2", // if child properties are not specified, all properties are included.
+            "variant_two", // if a field is marked with `flatten`, it's properties are merged with its parents properties.
         ]
         .into_iter(),
     ))

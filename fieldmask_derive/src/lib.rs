@@ -2,7 +2,7 @@ use inflector::cases::snakecase::to_snake_case;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, Index};
-use utils::{Item, ItemInfo};
+use utils::{Item, ItemInfo, ItemType};
 
 mod utils;
 
@@ -10,12 +10,15 @@ mod utils;
 pub fn derive_maskable(input: TokenStream) -> TokenStream {
     let input: Item = parse_macro_input!(input);
     let ItemInfo {
+        item_type,
         ident,
         generics,
         fields,
     } = input.get_info();
 
     let (impl_generics, ty_generics, where_clauses) = generics.split_for_impl();
+    let field_indices = fields.iter().enumerate().map(|(i, _field)| Index::from(i));
+    let field_idents = fields.iter().map(|field| &field.ident).collect::<Vec<_>>();
     let field_types = fields.iter().map(|f| f.ty);
     let match_arms = fields.iter().enumerate().map(|(i, field)| {
         let index = Index::from(i);
@@ -41,68 +44,6 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
             }
         }
     });
-
-    (quote! {
-        impl#impl_generics ::fieldmask::Maskable for #ident#ty_generics
-        #where_clauses
-        {
-            type Mask = ::fieldmask::BitwiseWrap<(#(::fieldmask::FieldMask<#field_types>,)*)>;
-
-            fn try_bitor_assign_mask<'a>(
-                mask: &mut Self::Mask,
-                field_mask_segs: &[&'a ::core::primitive::str],
-            ) -> ::core::result::Result<(), ::fieldmask::DeserializeMaskError<'a>> {
-                match field_mask_segs {
-                    [] => *mask = !Self::Mask::default(),
-                    #(#match_arms)*
-                    _ => return ::core::result::Result::Err(::fieldmask::DeserializeMaskError{
-                        type_str: stringify!(#ident),
-                        field: field_mask_segs[0],
-                        depth: 0,
-                    }),
-                }
-                Ok(())
-            }
-        }
-    })
-    .into()
-}
-
-#[proc_macro_derive(SelfMaskable)]
-pub fn derive_absolute_maskable(input: TokenStream) -> TokenStream {
-    let input: Item = parse_macro_input!(input);
-    let ItemInfo {
-        ident,
-        generics,
-        fields,
-    } = input.get_info();
-
-    let (impl_generics, ty_generics, where_clauses) = generics.split_for_impl();
-    let field_indices = fields.iter().enumerate().map(|(i, _field)| Index::from(i));
-    let field_idents = fields.iter().map(|field| &field.ident).collect::<Vec<_>>();
-
-    (quote! {
-        impl#impl_generics ::fieldmask::SelfMaskable for #ident#ty_generics
-        #where_clauses
-        {
-            fn apply_mask(&mut self, src: Self, mask: Self::Mask) {
-                #(mask.0.#field_indices.apply(&mut self.#field_idents, src.#field_idents);)*
-            }
-        }
-    })
-    .into()
-}
-
-#[proc_macro_derive(OptionMaskable)]
-pub fn derive_optional_maskable(input: TokenStream) -> TokenStream {
-    let input: Item = parse_macro_input!(input);
-    let ItemInfo {
-        ident,
-        generics,
-        fields,
-    } = input.get_info();
-
-    let (impl_generics, ty_generics, where_clauses) = generics.split_for_impl();
     let match_arm_groups = fields.iter().map(|target_field| {
         let target_ident = target_field.ident;
         let arms = fields.iter().enumerate().map(|(i, src_field)| {
@@ -133,17 +74,54 @@ pub fn derive_optional_maskable(input: TokenStream) -> TokenStream {
         }
     });
 
+    let additional_impl = match item_type {
+        ItemType::Enum => quote! {
+            impl#impl_generics ::fieldmask::OptionMaskable for #ident#ty_generics
+            #where_clauses
+            {
+                fn apply_mask(&mut self, src: Self, mask: Self::Mask) -> bool {
+                    match self {
+                        #(#match_arm_groups)*
+                    }
+                    return true;
+                }
+            }
+        },
+        ItemType::Struct => quote! {
+            impl#impl_generics ::fieldmask::SelfMaskable for #ident#ty_generics
+            #where_clauses
+            {
+                fn apply_mask(&mut self, src: Self, mask: Self::Mask) {
+                    #(mask.0.#field_indices.apply(&mut self.#field_idents, src.#field_idents);)*
+                }
+            }
+        },
+    };
+
     (quote! {
-        impl#impl_generics ::fieldmask::OptionMaskable for #ident#ty_generics
+        impl#impl_generics ::fieldmask::Maskable for #ident#ty_generics
         #where_clauses
         {
-            fn apply_mask(&mut self, src: Self, mask: Self::Mask) -> bool {
-                match self {
-                    #(#match_arm_groups)*
+            type Mask = ::fieldmask::BitwiseWrap<(#(::fieldmask::FieldMask<#field_types>,)*)>;
+
+            fn try_bitor_assign_mask<'a>(
+                mask: &mut Self::Mask,
+                field_mask_segs: &[&'a ::core::primitive::str],
+            ) -> ::core::result::Result<(), ::fieldmask::DeserializeMaskError<'a>> {
+                match field_mask_segs {
+                    [] => *mask = !Self::Mask::default(),
+                    #(#match_arms)*
+                    _ => return ::core::result::Result::Err(::fieldmask::DeserializeMaskError{
+                        type_str: stringify!(#ident),
+                        field: field_mask_segs[0],
+                        depth: 0,
+                    }),
                 }
-                return true;
+                Ok(())
             }
         }
+
+        #additional_impl
     })
     .into()
 }

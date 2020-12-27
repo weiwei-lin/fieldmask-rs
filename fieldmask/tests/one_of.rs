@@ -1,8 +1,8 @@
 use std::convert::TryFrom;
 
-use fieldmask::{FieldMask, FieldMaskInput, Maskable, OptionMaskable, SelfMaskable};
+use fieldmask::{FieldMask, FieldMaskInput, Maskable};
 
-#[derive(Debug, PartialEq, Maskable, OptionMaskable)]
+#[derive(Debug, PartialEq, Maskable)]
 enum OneOf {
     A(String),
     B(String),
@@ -15,7 +15,7 @@ impl Default for OneOf {
     }
 }
 
-#[derive(Debug, PartialEq, Maskable, SelfMaskable)]
+#[derive(Debug, PartialEq, Maskable)]
 struct Parent {
     #[fieldmask(flatten)]
     one_of: Option<OneOf>,

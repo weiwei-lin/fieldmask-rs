@@ -19,6 +19,11 @@ pub enum Item {
     Enum(ItemEnum),
 }
 
+pub enum ItemType {
+    Struct,
+    Enum,
+}
+
 pub struct ItemStruct {
     pub attrs: Vec<Attribute>,
     pub vis: Visibility,
@@ -171,6 +176,7 @@ pub struct Field<'a> {
 }
 
 pub struct ItemInfo<'a> {
+    pub item_type: ItemType,
     pub ident: &'a Ident,
     pub generics: &'a Generics,
     pub fields: Vec<Field<'a>>,
@@ -190,6 +196,7 @@ impl ItemEnum {
             })
             .collect::<Vec<_>>();
         ItemInfo {
+            item_type: ItemType::Enum,
             ident,
             generics,
             fields,
@@ -211,6 +218,7 @@ impl ItemStruct {
             })
             .collect::<Vec<_>>();
         ItemInfo {
+            item_type: ItemType::Struct,
             ident,
             generics,
             fields,
