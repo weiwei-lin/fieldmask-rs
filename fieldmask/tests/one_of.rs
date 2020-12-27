@@ -45,6 +45,47 @@ fn one_of() {
 }
 
 #[test]
+fn different_variant() {
+    let mut struct1 = Parent {
+        one_of: Some(OneOf::A("a".into())),
+        c: 1,
+    };
+    let struct2 = Parent {
+        one_of: Some(OneOf::B("b".into())),
+        c: 2,
+    };
+
+    let expected_struct = Parent { one_of: None, c: 2 };
+
+    FieldMask::try_from(FieldMaskInput(vec!["a", "c"].into_iter()))
+        .expect("unable to deserialize mask")
+        .apply(&mut struct1, struct2);
+    assert_eq!(struct1, expected_struct);
+}
+
+#[test]
+fn different_variant_both_in_mask() {
+    let mut struct1 = Parent {
+        one_of: Some(OneOf::A("a".into())),
+        c: 1,
+    };
+    let struct2 = Parent {
+        one_of: Some(OneOf::B("b".into())),
+        c: 2,
+    };
+
+    let expected_struct = Parent {
+        one_of: Some(OneOf::B("b".into())),
+        c: 2,
+    };
+
+    FieldMask::try_from(FieldMaskInput(vec!["a", "b", "c"].into_iter()))
+        .expect("unable to deserialize mask")
+        .apply(&mut struct1, struct2);
+    assert_eq!(struct1, expected_struct);
+}
+
+#[test]
 fn no_field() {
     let mut struct1 = Parent {
         one_of: Some(OneOf::A("a".into())),
