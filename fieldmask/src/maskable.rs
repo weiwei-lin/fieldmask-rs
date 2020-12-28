@@ -129,5 +129,51 @@ macro_rules! maskable {
     };
 }
 
+maskable!(bool);
+maskable!(char);
+
+maskable!(f32);
+maskable!(f64);
+
+maskable!(i8);
+maskable!(u8);
+maskable!(i16);
+maskable!(u16);
+maskable!(i32);
 maskable!(u32);
+maskable!(i64);
+maskable!(u64);
+maskable!(i128);
+maskable!(u128);
+maskable!(isize);
+maskable!(usize);
+
 maskable!(String);
+
+impl<T> Maskable for Vec<T> {
+    type Mask = bool;
+
+    fn try_bitor_assign_mask<'a>(
+        mask: &mut Self::Mask,
+        field_mask_segs: &[&'a str],
+    ) -> Result<(), DeserializeMaskError<'a>> {
+        if field_mask_segs.len() == 0 {
+            *mask = true;
+            Ok(())
+        } else {
+            Err(DeserializeMaskError {
+                type_str: "Vec",
+                field: field_mask_segs[0],
+                depth: 0,
+            })
+        }
+    }
+}
+
+impl<T> SelfMaskable for Vec<T> {
+    fn apply_mask(&mut self, other: Self, mask: Self::Mask) {
+        if mask {
+            *self = other;
+        }
+    }
+}

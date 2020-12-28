@@ -135,7 +135,7 @@ where
     }
 }
 
-#[derive(AsMut, AsRef, Deref, DerefMut, From, Default, PartialEq, Debug)]
+#[derive(AsMut, AsRef, Deref, DerefMut, From, Default, PartialEq, Eq, Debug)]
 #[deref(forward)]
 #[deref_mut(forward)]
 pub struct BitwiseWrap<T>(pub T);
