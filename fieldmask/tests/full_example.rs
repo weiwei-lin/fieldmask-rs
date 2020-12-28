@@ -74,7 +74,7 @@ fn case_1() {
             "primitive",
             "child_1.field_two",
             "child_2", // if child properties are not specified, all properties are included.
-            "variant_two", // if a field is marked with `flatten`, it's properties are merged with its parents properties.
+            "variant_two", // if a field is marked with `flatten`, its properties are merged with its parents properties.
         ]
         .into_iter(),
     ))
