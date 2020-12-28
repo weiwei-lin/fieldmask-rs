@@ -12,10 +12,7 @@ use crate::maskable::{DeserializeMaskError, Maskable, SelfMaskable};
 pub struct FieldMask<T: Maskable>(T::Mask);
 
 impl<T: Maskable> FieldMask<T> {
-    pub fn try_bitor_assign<'a>(
-        &mut self,
-        rhs: &[&'a str],
-    ) -> Result<(), DeserializeMaskError<'a>> {
+    pub fn try_bitor_assign(&mut self, rhs: &[&str]) -> Result<(), DeserializeMaskError> {
         T::try_bitor_assign_mask(&mut self.0, rhs)
     }
 }
@@ -24,9 +21,9 @@ pub struct FieldMaskInput<T>(pub T);
 
 #[derive(Debug, Error)]
 #[error(r#"can not parse fieldmask "{entry}"; {err}"#)]
-pub struct DeserializeFieldMaskError<'a> {
-    pub entry: &'a str,
-    err: DeserializeMaskError<'a>,
+pub struct DeserializeFieldMaskError {
+    pub entry: String,
+    err: DeserializeMaskError,
 }
 
 impl<'a, I, T> TryFrom<FieldMaskInput<I>> for FieldMask<T>
@@ -35,13 +32,16 @@ where
     T: Maskable,
     T::Mask: Default,
 {
-    type Error = DeserializeFieldMaskError<'a>;
+    type Error = DeserializeFieldMaskError;
 
     fn try_from(value: FieldMaskInput<I>) -> Result<Self, Self::Error> {
         let mut mask = Self::default();
         for entry in value.0 {
             mask.try_bitor_assign(&entry.split('.').collect::<Vec<_>>())
-                .map_err(|err| DeserializeFieldMaskError { entry, err })?;
+                .map_err(|err| DeserializeFieldMaskError {
+                    entry: entry.into(),
+                    err,
+                })?;
         }
         Ok(mask)
     }

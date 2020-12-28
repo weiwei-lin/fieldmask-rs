@@ -104,16 +104,16 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
         {
             type Mask = ::fieldmask::BitwiseWrap<(#(::fieldmask::FieldMask<#field_types>,)*)>;
 
-            fn try_bitor_assign_mask<'a>(
+            fn try_bitor_assign_mask(
                 mask: &mut Self::Mask,
-                field_mask_segs: &[&'a ::core::primitive::str],
-            ) -> ::core::result::Result<(), ::fieldmask::DeserializeMaskError<'a>> {
+                field_mask_segs: &[&::core::primitive::str],
+            ) -> ::core::result::Result<(), ::fieldmask::DeserializeMaskError> {
                 match field_mask_segs {
                     [] => *mask = !Self::Mask::default(),
                     #(#match_arms)*
                     _ => return ::core::result::Result::Err(::fieldmask::DeserializeMaskError{
                         type_str: stringify!(#ident),
-                        field: field_mask_segs[0],
+                        field: field_mask_segs[0].into(),
                         depth: 0,
                     }),
                 }
