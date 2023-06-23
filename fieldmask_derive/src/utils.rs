@@ -3,7 +3,7 @@ use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     token::{Brace, Paren},
-    Attribute, Generics, Ident, Meta, NestedMeta, Token, Type, Visibility,
+    Attribute, Expr, Generics, Ident, Meta, NestedMeta, Token, Type, Visibility,
 };
 
 #[cfg(feature = "prost")]
@@ -25,6 +25,7 @@ pub enum Item {
 pub enum ItemType {
     Struct,
     Enum,
+    UnitEnum,
 }
 
 pub struct ItemStruct {
@@ -44,7 +45,7 @@ pub struct ItemEnum {
     pub ident: Ident,
     pub generics: Generics,
     pub brace_token: Brace,
-    pub variants: Punctuated<SingleTupleVariant, Token![,]>,
+    pub variants: Punctuated<EnumVariant, Token![,]>,
 }
 
 pub struct NamedField {
@@ -62,6 +63,60 @@ pub struct SingleTupleVariant {
     pub paren_token: Paren,
     pub tuple_attrs: Vec<Attribute>,
     pub ty: Type,
+}
+
+pub struct UnitVariant {
+    pub attrs: Vec<Attribute>,
+    pub ident: Ident,
+    pub discriminant: Option<(Token![=], Expr)>,
+}
+
+pub enum EnumVariant {
+    Tuple(SingleTupleVariant),
+    Unit(UnitVariant),
+}
+
+impl Parse for EnumVariant {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let attrs = input.call(Attribute::parse_outer)?;
+        let _visibility: Visibility = input.parse()?;
+        let ident: Ident = input.parse()?;
+
+        if input.peek(Paren) {
+            let content;
+            Ok(Self::Tuple(SingleTupleVariant {
+                attrs,
+                ident,
+                paren_token: parenthesized!(content in input),
+                tuple_attrs: content.call(Attribute::parse_outer)?,
+                ty: {
+                    let _vis: Visibility = content.parse()?;
+                    let ty = content.parse()?;
+                    if !content.is_empty() {
+                        let _punt: Token![,] = content.parse()?;
+                        if !content.is_empty() {
+                            return Err(
+                                content.error("there can be at most one item in the tuple variant")
+                            );
+                        }
+                    }
+                    ty
+                },
+            }))
+        } else {
+            Ok(Self::Unit(UnitVariant {
+                attrs,
+                ident,
+                discriminant: if input.peek(Token![=]) {
+                    let eq_token = input.parse()?;
+                    let discriminant = input.parse()?;
+                    Some((eq_token, discriminant))
+                } else {
+                    None
+                },
+            }))
+        }
+    }
 }
 
 impl Parse for Item {
@@ -99,7 +154,7 @@ impl Parse for Item {
                     generics
                 },
                 brace_token: braced!(content in input),
-                variants: content.parse_terminated(SingleTupleVariant::parse)?,
+                variants: content.parse_terminated(EnumVariant::parse)?,
             }))
         } else {
             Err(lookahead.error())
@@ -184,34 +239,6 @@ impl Parse for NamedField {
     }
 }
 
-impl Parse for SingleTupleVariant {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let content;
-        Ok(SingleTupleVariant {
-            attrs: input.call(Attribute::parse_outer)?,
-            ident: {
-                let _vis: Visibility = input.parse()?;
-                input.parse()?
-            },
-            paren_token: parenthesized!(content in input),
-            tuple_attrs: content.call(Attribute::parse_outer)?,
-            ty: {
-                let _vis: Visibility = content.parse()?;
-                let ty = content.parse()?;
-                if !content.is_empty() {
-                    let _punt: Token![,] = content.parse()?;
-                    if !content.is_empty() {
-                        return Err(
-                            content.error("there can be at most one item in the tuple variant")
-                        );
-                    }
-                }
-                ty
-            },
-        })
-    }
-}
-
 pub struct Field<'a> {
     pub ident: &'a Ident,
     pub ty: &'a Type,
@@ -229,20 +256,42 @@ impl ItemEnum {
     pub fn get_info(&self) -> ItemInfo {
         let ident = &self.ident;
         let generics = &self.generics;
-        let fields = self
+        if self
             .variants
             .iter()
-            .map(|v| Field {
-                ident: &v.ident,
-                ty: &v.ty,
-                is_flatten: false,
-            })
-            .collect::<Vec<_>>();
-        ItemInfo {
-            item_type: ItemType::Enum,
-            ident,
-            generics,
-            fields,
+            .all(|v| matches!(v, EnumVariant::Tuple(_)))
+        {
+            let fields = self
+                .variants
+                .iter()
+                .map(|v| match v {
+                    EnumVariant::Tuple(v) => Field {
+                        ident: &v.ident,
+                        ty: &v.ty,
+                        is_flatten: false,
+                    },
+                    _ => unreachable!(),
+                })
+                .collect::<Vec<_>>();
+            ItemInfo {
+                item_type: ItemType::Enum,
+                ident,
+                generics,
+                fields,
+            }
+        } else if self
+            .variants
+            .iter()
+            .all(|v| matches!(v, EnumVariant::Unit(_)))
+        {
+            ItemInfo {
+                item_type: ItemType::UnitEnum,
+                ident,
+                generics,
+                fields: Vec::default(),
+            }
+        } else {
+            panic!("all enum variants must be the same type: unit or single-field tuple")
         }
     }
 }
