@@ -150,6 +150,9 @@ maskable!(usize);
 
 maskable!(String);
 
+#[cfg(feature = "prost")]
+maskable!(prost::bytes::Bytes);
+
 impl<T> Maskable for Vec<T> {
     type Mask = bool;
 
