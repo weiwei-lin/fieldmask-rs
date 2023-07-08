@@ -1,9 +1,11 @@
+use proc_macro2::TokenStream;
+use quote::ToTokens;
 use syn::{
     braced, parenthesized,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     token::{Brace, Paren},
-    Attribute, Expr, Generics, Ident, Meta, NestedMeta, Token, Type, Visibility,
+    Attribute, Expr, Generics, Ident, Meta, NestedMeta, Path, Token, Type, Visibility,
 };
 
 #[cfg(feature = "prost")]
@@ -164,15 +166,25 @@ impl Parse for Item {
 
 #[derive(PartialEq)]
 enum NamedFieldAttribute {
-    Flatten,
+    Flatten { repr: Path },
 }
 
 impl Parse for NamedFieldAttribute {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let meta: NestedMeta = input.parse()?;
         match meta {
-            NestedMeta::Meta(Meta::Path(p)) if p.is_ident("flatten") => Ok(Self::Flatten),
+            NestedMeta::Meta(Meta::Path(p)) if p.is_ident("flatten") => {
+                Ok(Self::Flatten { repr: p })
+            }
             _ => Err(syn::Error::new_spanned(meta, "invalid meta")),
+        }
+    }
+}
+
+impl ToTokens for NamedFieldAttribute {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Self::Flatten { repr } => repr.to_tokens(tokens),
         }
     }
 }
@@ -202,30 +214,40 @@ impl Parse for NamedField {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let attrs = input.call(Attribute::parse_outer)?;
 
-        #[allow(unused_mut)]
-        let mut is_flatten = attrs
+        let mut is_flatten = false;
+
+        #[cfg(feature = "prost")]
+        {
+            is_flatten = attrs
+                .iter()
+                .filter(|attr| attr.path.is_ident("prost"))
+                .map(|attr| attr.parse_args())
+                .collect::<syn::Result<Vec<_>>>()?
+                .iter()
+                .flat_map(|attrs: &Wrap<Punctuated<ProstFieldAttribute, Token![,]>>| &attrs.0)
+                .any(|meta| match meta {
+                    ProstFieldAttribute::OneOf(_) => true,
+                    _ => false,
+                });
+        }
+
+        let attr_iter = attrs
             .iter()
             .filter(|attr| attr.path.is_ident("fieldmask"))
             .map(|attr| attr.parse_args())
             .collect::<syn::Result<Vec<_>>>()?
-            .iter()
-            .flat_map(|attrs: &Wrap<Punctuated<NamedFieldAttribute, Token![,]>>| &attrs.0)
-            .any(|meta| *meta == NamedFieldAttribute::Flatten);
+            .into_iter()
+            .flat_map(|attrs: Wrap<Punctuated<NamedFieldAttribute, Token![,]>>| attrs.0)
+            .filter(|attr| matches!(attr, NamedFieldAttribute::Flatten { .. }));
 
-        #[cfg(feature = "prost")]
-        {
-            is_flatten = is_flatten
-                || attrs
-                    .iter()
-                    .filter(|attr| attr.path.is_ident("prost"))
-                    .map(|attr| attr.parse_args())
-                    .collect::<syn::Result<Vec<_>>>()?
-                    .iter()
-                    .flat_map(|attrs: &Wrap<Punctuated<ProstFieldAttribute, Token![,]>>| &attrs.0)
-                    .any(|meta| match meta {
-                        ProstFieldAttribute::OneOf(_) => true,
-                        _ => false,
-                    });
+        for attr in attr_iter {
+            if is_flatten {
+                return Err(syn::Error::new_spanned(
+                    attr,
+                    "duplicated flatten attribute",
+                ));
+            }
+            is_flatten = true;
         }
 
         Ok(NamedField {
