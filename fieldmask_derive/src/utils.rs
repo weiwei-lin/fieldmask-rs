@@ -230,6 +230,7 @@ impl Parse for NamedField {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let attrs = input.call(Attribute::parse_outer)?;
 
+        #[allow(unused_assignments)]
         let mut is_flatten = false;
 
         #[cfg(feature = "prost")]

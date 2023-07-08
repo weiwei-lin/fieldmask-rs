@@ -77,7 +77,7 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
             impl#impl_generics ::fieldmask::OptionMaskable for #ident#ty_generics
             #where_clauses
             {
-                fn apply_mask(&mut self, src: Self, mask: Self::Mask) -> bool {
+                fn apply_mask(&mut self, src: Self, mask: &Self::Mask) -> bool {
                     match self {
                         #(#match_arm_groups)*
                     }
@@ -89,8 +89,8 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
             impl#impl_generics ::fieldmask::SelfMaskable for #ident#ty_generics
             #where_clauses
             {
-                fn apply_mask(&mut self, src: Self, mask: Self::Mask) {
-                    if mask {
+                fn apply_mask(&mut self, src: Self, mask: &Self::Mask) {
+                    if *mask {
                         *self = src;
                     }
                 }
@@ -100,7 +100,7 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
             impl#impl_generics ::fieldmask::SelfMaskable for #ident#ty_generics
             #where_clauses
             {
-                fn apply_mask(&mut self, src: Self, mask: Self::Mask) {
+                fn apply_mask(&mut self, src: Self, mask: &Self::Mask) {
                     #(mask.0.#field_indices.apply(&mut self.#field_idents, src.#field_idents);)*
                 }
             }

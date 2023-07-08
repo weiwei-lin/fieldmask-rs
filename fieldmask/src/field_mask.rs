@@ -49,8 +49,8 @@ where
 
 impl<T: SelfMaskable> FieldMask<T> {
     /// Update the object according to mask.
-    pub fn apply(self, target: &mut T, src: T) {
-        T::apply_mask(target, src, self.0);
+    pub fn apply(&self, target: &mut T, src: T) {
+        T::apply_mask(target, src, &self.0);
     }
 }
 

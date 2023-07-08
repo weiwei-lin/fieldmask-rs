@@ -32,12 +32,12 @@ pub trait Maskable: Sized {
 
 pub trait SelfMaskable: Maskable {
     /// Implementation of the application process of a mask.
-    fn apply_mask(&mut self, src: Self, mask: Self::Mask);
+    fn apply_mask(&mut self, src: Self, mask: &Self::Mask);
 }
 
 pub trait OptionMaskable: Maskable {
     /// Implementation of the application process of a mask.
-    fn apply_mask(&mut self, src: Self, mask: Self::Mask) -> bool;
+    fn apply_mask(&mut self, src: Self, mask: &Self::Mask) -> bool;
 }
 
 impl<T: SelfMaskable> OptionMaskable for T
@@ -45,7 +45,7 @@ where
     T: Default,
     T::Mask: PartialEq,
 {
-    fn apply_mask(&mut self, src: Self, mask: Self::Mask) -> bool {
+    fn apply_mask(&mut self, src: Self, mask: &Self::Mask) -> bool {
         self.apply_mask(src, mask);
         true
     }
@@ -71,8 +71,8 @@ where
     T: Default,
     T::Mask: PartialEq + Default,
 {
-    fn apply_mask(&mut self, src: Self, mask: Self::Mask) {
-        if mask == Self::Mask::default() {
+    fn apply_mask(&mut self, src: Self, mask: &Self::Mask) {
+        if mask == &Self::Mask::default() {
             return;
         }
         match self {
@@ -121,8 +121,8 @@ macro_rules! maskable {
         }
 
         impl SelfMaskable for $T {
-            fn apply_mask(&mut self, other: Self, mask: Self::Mask) {
-                if mask {
+            fn apply_mask(&mut self, other: Self, mask: &Self::Mask) {
+                if *mask {
                     *self = other;
                 }
             }
@@ -175,8 +175,8 @@ impl<T> Maskable for Vec<T> {
 }
 
 impl<T> SelfMaskable for Vec<T> {
-    fn apply_mask(&mut self, other: Self, mask: Self::Mask) {
-        if mask {
+    fn apply_mask(&mut self, other: Self, mask: &Self::Mask) {
+        if *mask {
             *self = other;
         }
     }
@@ -203,8 +203,8 @@ impl<K, V> Maskable for HashMap<K, V> {
 }
 
 impl<K, V> SelfMaskable for HashMap<K, V> {
-    fn apply_mask(&mut self, other: Self, mask: Self::Mask) {
-        if mask {
+    fn apply_mask(&mut self, other: Self, mask: &Self::Mask) {
+        if *mask {
             *self = other;
         }
     }

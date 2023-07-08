@@ -1,6 +1,8 @@
 [package]
 name = "fieldmask_derive"
-version = "0.0.1"
+description = "derive macros for the fieldmask crate"
+version = "0.0.2"
+repository = "https://github.com/weiwei-lin/fieldmask-rs"
 authors = ["Weiwei Lin <weiwei.will.lin@gmail.com>"]
 edition = "2018"
 include = [
@@ -18,4 +20,4 @@ prost = []
 Inflector = "0.11.4"
 proc-macro2 = "1.0.60"
 quote = "1.0.28"
-syn = "1.0.109"
+syn = { version = "1.0.109", features = [ "extra-traits" ]}
