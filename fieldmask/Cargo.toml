@@ -4,6 +4,7 @@ description = "(de)serializing/applying fieldmask"
 version = "0.0.2"
 repository = "https://github.com/weiwei-lin/fieldmask-rs"
 authors = ["Weiwei Lin <weiwei.will.lin@gmail.com>"]
+license = "MIT OR Apache-2.0"
 edition = "2018"
 include = [
     "**/*.rs",
