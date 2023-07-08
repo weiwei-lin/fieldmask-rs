@@ -9,6 +9,7 @@ struct Parent {
     child_2: Child,
     #[fieldmask(flatten)]
     one_of_field: Option<OneOfField>,
+    unit_field: UnitField,
 }
 
 #[derive(Debug, PartialEq, Maskable)]
@@ -21,6 +22,12 @@ struct Child {
 enum OneOfField {
     VariantOne(String),
     VariantTwo(u32),
+}
+
+#[derive(Debug, PartialEq, Maskable)]
+enum UnitField {
+    One = 1,
+    Two = 2,
 }
 
 impl Default for OneOfField {
@@ -42,6 +49,7 @@ fn case_1() {
             field_two: 2,
         },
         one_of_field: Some(OneOfField::VariantOne("variant one".into())),
+        unit_field: UnitField::One,
     };
     let src_struct = Parent {
         primitive: "updated string".into(),
@@ -54,6 +62,7 @@ fn case_1() {
             field_two: 20,
         },
         one_of_field: Some(OneOfField::VariantTwo(50)),
+        unit_field: UnitField::Two,
     };
 
     let expected_struct = Parent {
@@ -67,6 +76,7 @@ fn case_1() {
             field_two: 20,
         },
         one_of_field: Some(OneOfField::VariantTwo(50)),
+        unit_field: UnitField::Two,
     };
 
     FieldMask::try_from(FieldMaskInput(
@@ -75,6 +85,7 @@ fn case_1() {
             "child_1.field_two",
             "child_2", // if child properties are not specified, all properties are included.
             "variant_two", // if a field is marked with `flatten`, its properties are merged with its parents properties.
+            "unit_field",
         ]
         .into_iter(),
     ))

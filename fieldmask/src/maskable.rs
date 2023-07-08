@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -150,6 +152,9 @@ maskable!(usize);
 
 maskable!(String);
 
+#[cfg(feature = "prost")]
+maskable!(prost::bytes::Bytes);
+
 impl<T> Maskable for Vec<T> {
     type Mask = bool;
 
@@ -171,6 +176,34 @@ impl<T> Maskable for Vec<T> {
 }
 
 impl<T> SelfMaskable for Vec<T> {
+    fn apply_mask(&mut self, other: Self, mask: Self::Mask) {
+        if mask {
+            *self = other;
+        }
+    }
+}
+
+impl<K, V> Maskable for HashMap<K, V> {
+    type Mask = bool;
+
+    fn try_bitor_assign_mask(
+        mask: &mut Self::Mask,
+        field_mask_segs: &[&str],
+    ) -> Result<(), DeserializeMaskError> {
+        if field_mask_segs.len() == 0 {
+            *mask = true;
+            Ok(())
+        } else {
+            Err(DeserializeMaskError {
+                type_str: "HashMap",
+                field: field_mask_segs[0].into(),
+                depth: 0,
+            })
+        }
+    }
+}
+
+impl<K, V> SelfMaskable for HashMap<K, V> {
     fn apply_mask(&mut self, other: Self, mask: Self::Mask) {
         if mask {
             *self = other;
