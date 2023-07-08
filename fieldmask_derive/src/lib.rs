@@ -30,9 +30,7 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
                     .try_bitor_assign(field_mask_segs)
                     .map(|_| true)
                     .or_else(|l| if l.depth == 0 { Ok(false) } else { Err(l) })? =>
-                {
-                    ()
-                }
+                {}
             }
         } else {
             let prefix = to_snake_case(&field.ident.to_string());

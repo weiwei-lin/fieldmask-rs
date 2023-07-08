@@ -86,36 +86,38 @@ impl Parse for EnumVariant {
 
         if input.peek(Paren) {
             let content;
+            let paren_token = parenthesized!(content in input);
+            let tuple_attrs = content.call(Attribute::parse_outer)?;
+            let _vis: Visibility = content.parse()?;
+            let ty = content.parse()?;
+
+            if !content.is_empty() {
+                let _punt: Token![,] = content.parse()?;
+                if !content.is_empty() {
+                    return Err(content.error("there can be at most one item in the tuple variant"));
+                }
+            }
+
             Ok(Self::Tuple(SingleTupleVariant {
                 attrs,
                 ident,
-                paren_token: parenthesized!(content in input),
-                tuple_attrs: content.call(Attribute::parse_outer)?,
-                ty: {
-                    let _vis: Visibility = content.parse()?;
-                    let ty = content.parse()?;
-                    if !content.is_empty() {
-                        let _punt: Token![,] = content.parse()?;
-                        if !content.is_empty() {
-                            return Err(
-                                content.error("there can be at most one item in the tuple variant")
-                            );
-                        }
-                    }
-                    ty
-                },
+                paren_token,
+                tuple_attrs,
+                ty,
             }))
         } else {
+            let discriminant = if input.peek(Token![=]) {
+                let eq_token = input.parse()?;
+                let discriminant = input.parse()?;
+                Some((eq_token, discriminant))
+            } else {
+                None
+            };
+
             Ok(Self::Unit(UnitVariant {
                 attrs,
                 ident,
-                discriminant: if input.peek(Token![=]) {
-                    let eq_token = input.parse()?;
-                    let discriminant = input.parse()?;
-                    Some((eq_token, discriminant))
-                } else {
-                    None
-                },
+                discriminant,
             }))
         }
     }
@@ -129,34 +131,48 @@ impl Parse for Item {
 
         let lookahead = input.lookahead1();
         if lookahead.peek(Token![struct]) {
+            let struct_token = input.parse()?;
+            let ident = input.parse()?;
+            let generics = {
+                let mut generics: Generics = input.parse()?;
+                generics.where_clause = input.parse()?;
+                generics
+            };
+
             let content;
+            let brace_token = braced!(content in input);
+            let fields = content.parse_terminated(NamedField::parse)?;
+
             Ok(Self::Struct(ItemStruct {
                 attrs,
                 vis,
-                struct_token: input.parse()?,
-                ident: input.parse()?,
-                generics: {
-                    let mut generics: Generics = input.parse()?;
-                    generics.where_clause = input.parse()?;
-                    generics
-                },
-                brace_token: braced!(content in input),
-                fields: content.parse_terminated(NamedField::parse)?,
+                struct_token,
+                ident,
+                generics,
+                brace_token,
+                fields,
             }))
         } else if lookahead.peek(Token![enum]) {
+            let enum_token = input.parse()?;
+            let ident = input.parse()?;
+            let generics = {
+                let mut generics: Generics = input.parse()?;
+                generics.where_clause = input.parse()?;
+                generics
+            };
+
             let content;
+            let brace_token = braced!(content in input);
+            let variants = content.parse_terminated(EnumVariant::parse)?;
+
             Ok(Self::Enum(ItemEnum {
                 attrs,
                 vis,
-                enum_token: input.parse()?,
-                ident: input.parse()?,
-                generics: {
-                    let mut generics: Generics = input.parse()?;
-                    generics.where_clause = input.parse()?;
-                    generics
-                },
-                brace_token: braced!(content in input),
-                variants: content.parse_terminated(EnumVariant::parse)?,
+                enum_token,
+                ident,
+                generics,
+                brace_token,
+                variants,
             }))
         } else {
             Err(lookahead.error())

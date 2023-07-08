@@ -84,8 +84,8 @@ where
                 }
                 None => *self = None,
             },
-            None => match src {
-                Some(o) => {
+            None => {
+                if let Some(o) = src {
                     let mut new = T::default();
                     if new.apply_mask(o, mask) {
                         *self = Some(new);
@@ -93,8 +93,7 @@ where
                         *self = None;
                     }
                 }
-                None => {}
-            },
+            }
         }
     }
 }
@@ -162,7 +161,7 @@ impl<T> Maskable for Vec<T> {
         mask: &mut Self::Mask,
         field_mask_segs: &[&str],
     ) -> Result<(), DeserializeMaskError> {
-        if field_mask_segs.len() == 0 {
+        if field_mask_segs.is_empty() {
             *mask = true;
             Ok(())
         } else {
@@ -190,7 +189,7 @@ impl<K, V> Maskable for HashMap<K, V> {
         mask: &mut Self::Mask,
         field_mask_segs: &[&str],
     ) -> Result<(), DeserializeMaskError> {
-        if field_mask_segs.len() == 0 {
+        if field_mask_segs.is_empty() {
             *mask = true;
             Ok(())
         } else {
