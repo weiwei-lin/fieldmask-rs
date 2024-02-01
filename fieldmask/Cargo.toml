@@ -17,5 +17,5 @@ prost-integration = ["prost", "fieldmask_derive/prost"]
 [dependencies]
 derive_more = "0.99.17"
 fieldmask_derive = { version = "0.0.3", path = "../fieldmask_derive" }
-prost = { version = "0.11.9", optional = true }
+prost = { version = "0.12", optional = true }
 thiserror = "1.0.40"
