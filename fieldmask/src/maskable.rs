@@ -99,7 +99,7 @@ where
 }
 
 macro_rules! maskable {
-    ($T:ident) => {
+    ($T:path) => {
         impl Maskable for $T {
             type Mask = bool;
 
