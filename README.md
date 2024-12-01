@@ -1,5 +1,5 @@
 # fieldmask
-A rust library that supports (de)serializing/applying fieldmask.
+A Rust library that supports (de)serializing/applying fieldmask.
 
 ## Example
 ```rust
