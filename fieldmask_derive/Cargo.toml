@@ -1,7 +1,7 @@
 [package]
 name = "fieldmask_derive"
 description = "derive macros for the fieldmask crate"
-version = "0.0.3"
+version = "0.0.4"
 repository = "https://github.com/weiwei-lin/fieldmask-rs"
 authors = ["Weiwei Lin <weiwei.will.lin@gmail.com>"]
 license = "MIT OR Apache-2.0"

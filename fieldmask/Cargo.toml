@@ -1,7 +1,7 @@
 [package]
 name = "fieldmask"
 description = "(de)serializing/applying fieldmask"
-version = "0.0.3"
+version = "0.0.4"
 repository = "https://github.com/weiwei-lin/fieldmask-rs"
 authors = ["Weiwei Lin <weiwei.will.lin@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -16,6 +16,6 @@ prost-integration = ["prost", "fieldmask_derive/prost"]
 
 [dependencies]
 derive_more = "0.99.17"
-fieldmask_derive = { version = "0.0.3", path = "../fieldmask_derive" }
+fieldmask_derive = { version = "0.0.4", path = "../fieldmask_derive" }
 prost = { version = "0.12", optional = true }
 thiserror = "1.0.40"
