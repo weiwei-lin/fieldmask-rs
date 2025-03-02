@@ -10,7 +10,7 @@ pub struct DeserializeMaskError {
     pub depth: u8,
 }
 
-/// A trait for types that have an associated fieldmask type.
+/// A trait for types that have an associated field mask type.
 pub trait Maskable: Sized {
     /// A type that can be used to represent a field mask for this particular type.
     /// Different types may have different representations for field masks.
@@ -56,20 +56,20 @@ pub trait Maskable: Sized {
         // 2. Therefore, if we take the ownership, we will need to return the ownership even when
         // the method failed, which is cumbersome.
         mask: &mut Self::Mask,
-        // Take a slice of segments instead of a full fieldmask string. Because:
+        // Take a slice of segments instead of a full field mask string. Because:
         // 1. It's easier to perform pattern matching on slices.
-        // 2. It's easier to distinguish empty fieldmask (e.g. "") and empty tail (e.g. "parent.").
+        // 2. It's easier to distinguish empty field mask (e.g. "") and empty tail (e.g. "parent.").
         field_path: &[&str],
     ) -> Result<(), DeserializeMaskError>;
 }
 
-/// A trait for types whose fields can be selected using fieldmasks.
+/// A trait for types whose fields can be selected using field masks.
 pub trait SelfMaskable: Maskable {
     /// Assign all the fields in `update` that are selected by `mask` to `self`.
     fn apply_mask(&mut self, update: Self, mask: &Self::Mask);
 }
 
-/// A trait for types whose content can be selected using fieldmasks when it's wrapped in an
+/// A trait for types whose content can be selected using field masks when it's wrapped in an
 /// `Option`.
 ///
 /// This is useful when the entire type can be dropped when the mask doesn't match any field.
