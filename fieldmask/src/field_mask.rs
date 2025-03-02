@@ -13,7 +13,7 @@ pub struct FieldMask<T: Maskable>(T::Mask);
 
 impl<T: Maskable> FieldMask<T> {
     pub fn try_bitor_assign(&mut self, rhs: &[&str]) -> Result<(), DeserializeMaskError> {
-        T::try_bitor_assign_mask(&mut self.0, rhs)
+        T::make_mask_include_field(&mut self.0, rhs)
     }
 }
 

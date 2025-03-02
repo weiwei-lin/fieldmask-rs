@@ -27,7 +27,7 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
                 _ if mask
                     .0
                     .#index
-                    .try_bitor_assign(field_mask_segs)
+                    .try_bitor_assign(field_path)
                     .map(|_| true)
                     .or_else(|l| if l.depth == 0 { Ok(false) } else { Err(l) })? =>
                 {}
@@ -44,28 +44,28 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
     });
     let match_arm_groups = fields.iter().map(|target_field| {
         let target_ident = target_field.ident;
-        let arms = fields.iter().enumerate().map(|(i, src_field)| {
+        let arms = fields.iter().enumerate().map(|(i, update_field)| {
             let index = Index::from(i);
-            let src_ident = src_field.ident;
-            if src_ident == target_ident {
+            let update_ident = update_field.ident;
+            if update_ident == target_ident {
                 quote! {
-                    Self::#src_ident(s) if mask.0.#index != ::fieldmask::FieldMask::default() => {
+                    Self::#update_ident(s) if mask.0.#index != ::fieldmask::FieldMask::default() => {
                         mask.0.#index.apply(t, s);
                     }
                 }
             } else {
-                let src_ty = src_field.ty;
+                let update_ty = update_field.ty;
                 quote! {
-                    Self::#src_ident(s) if mask.0.#index != ::fieldmask::FieldMask::default() => {
-                        let mut new = <#src_ty>::default();
+                    Self::#update_ident(s) if mask.0.#index != ::fieldmask::FieldMask::default() => {
+                        let mut new = <#update_ty>::default();
                         mask.0.#index.apply(&mut new, s);
-                        *self = Self::#src_ident(new);
+                        *self = Self::#update_ident(new);
                     }
                 }
             }
         });
         quote! {
-            Self::#target_ident(t) => match src {
+            Self::#target_ident(t) => match update {
                 #(#arms)*
                 _ => return false,
             }
@@ -77,7 +77,7 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
             impl#impl_generics ::fieldmask::OptionMaskable for #ident#ty_generics
             #where_clauses
             {
-                fn apply_mask(&mut self, src: Self, mask: &Self::Mask) -> bool {
+                fn apply_mask(&mut self, update: Self, mask: &Self::Mask) -> bool {
                     match self {
                         #(#match_arm_groups)*
                     }
@@ -89,9 +89,9 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
             impl#impl_generics ::fieldmask::SelfMaskable for #ident#ty_generics
             #where_clauses
             {
-                fn apply_mask(&mut self, src: Self, mask: &Self::Mask) {
+                fn apply_mask(&mut self, update: Self, mask: &Self::Mask) {
                     if *mask {
-                        *self = src;
+                        *self = update;
                     }
                 }
             }
@@ -100,8 +100,8 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
             impl#impl_generics ::fieldmask::SelfMaskable for #ident#ty_generics
             #where_clauses
             {
-                fn apply_mask(&mut self, src: Self, mask: &Self::Mask) {
-                    #(mask.0.#field_indices.apply(&mut self.#field_idents, src.#field_idents);)*
+                fn apply_mask(&mut self, update: Self, mask: &Self::Mask) {
+                    #(mask.0.#field_indices.apply(&mut self.#field_idents, update.#field_idents);)*
                 }
             }
         },
@@ -110,7 +110,7 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
     let deserialize_error = quote! {
         ::core::result::Result::Err(::fieldmask::DeserializeMaskError{
             type_str: stringify!(#ident),
-            field: field_mask_segs[0].into(),
+            field: field_path[0].into(),
             depth: 0,
         })
     };
@@ -122,11 +122,11 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
             {
                 type Mask = bool;
 
-                fn try_bitor_assign_mask(
+                fn make_mask_include_field(
                     mask: &mut Self::Mask,
-                    field_mask_segs: &[&::core::primitive::str],
+                    field_path: &[&::core::primitive::str],
                 ) -> ::core::result::Result<(), ::fieldmask::DeserializeMaskError> {
-                    if field_mask_segs.len() == 0 {
+                    if field_path.len() == 0 {
                         *mask = true;
                         Ok(())
                     } else {
@@ -143,11 +143,12 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
             {
                 type Mask = ::fieldmask::BitwiseWrap<(#(::fieldmask::FieldMask<#field_types>,)*)>;
 
-                fn try_bitor_assign_mask(
+                fn make_mask_include_field(
                     mask: &mut Self::Mask,
-                    field_mask_segs: &[&::core::primitive::str],
+                    field_path: &[&::core::primitive::str],
                 ) -> ::core::result::Result<(), ::fieldmask::DeserializeMaskError> {
-                    match field_mask_segs {
+                    match field_path {
+                        // If field_path is empty, set mask to match everything.
                         [] => *mask = !Self::Mask::default(),
                         #(#match_arms)*
                         _ => return #deserialize_error,
