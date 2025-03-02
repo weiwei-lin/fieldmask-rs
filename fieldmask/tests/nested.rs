@@ -16,44 +16,44 @@ struct Parent {
 
 #[test]
 fn nested() {
-    let mut struct1 = Parent {
+    let mut target = Parent {
         child: Child { a: 1, b: 2 },
         c: 3,
     };
-    let struct2 = Parent {
+    let update = Parent {
         child: Child { a: 4, b: 5 },
         c: 6,
     };
 
-    let expected_struct = Parent {
+    let expected = Parent {
         child: Child { a: 1, b: 5 },
         c: 6,
     };
 
     FieldMask::try_from(FieldMaskInput(vec!["child.b", "c"].into_iter()))
         .expect("unable to deserialize mask")
-        .apply(&mut struct1, struct2);
-    assert_eq!(struct1, expected_struct);
+        .apply(&mut target, update);
+    assert_eq!(target, expected);
 }
 
 #[test]
 fn full_child_mask() {
-    let mut struct1 = Parent {
+    let mut target = Parent {
         child: Child { a: 1, b: 2 },
         c: 3,
     };
-    let struct2 = Parent {
+    let update = Parent {
         child: Child { a: 4, b: 5 },
         c: 6,
     };
 
-    let expected_struct = Parent {
+    let expected = Parent {
         child: Child { a: 4, b: 5 },
         c: 6,
     };
 
     FieldMask::try_from(FieldMaskInput(vec!["child", "c"].into_iter()))
         .expect("unable to deserialize mask")
-        .apply(&mut struct1, struct2);
-    assert_eq!(struct1, expected_struct);
+        .apply(&mut target, update);
+    assert_eq!(target, expected);
 }

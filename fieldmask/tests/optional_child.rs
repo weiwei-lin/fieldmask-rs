@@ -16,105 +16,105 @@ struct Parent {
 
 #[test]
 fn optional_child() {
-    let mut struct1 = Parent {
+    let mut target = Parent {
         child: Some(Child { a: 1, b: 2 }),
         c: 3,
     };
-    let struct2 = Parent {
+    let update = Parent {
         child: Some(Child { a: 4, b: 5 }),
         c: 6,
     };
 
-    let expected_struct = Parent {
+    let expected = Parent {
         child: Some(Child { a: 1, b: 5 }),
         c: 6,
     };
 
     FieldMask::try_from(FieldMaskInput(vec!["child.b", "c"].into_iter()))
         .expect("unable to deserialize mask")
-        .apply(&mut struct1, struct2);
-    assert_eq!(struct1, expected_struct);
+        .apply(&mut target, update);
+    assert_eq!(target, expected);
 }
 
 #[test]
 fn other_child_is_none() {
-    let mut struct1 = Parent {
+    let mut target = Parent {
         child: Some(Child { a: 1, b: 2 }),
         c: 3,
     };
-    let struct2 = Parent { child: None, c: 6 };
+    let update = Parent { child: None, c: 6 };
 
-    let expected_struct = Parent { child: None, c: 6 };
+    let expected = Parent { child: None, c: 6 };
 
     FieldMask::try_from(FieldMaskInput(vec!["child.b", "c"].into_iter()))
         .expect("unable to deserialize mask")
-        .apply(&mut struct1, struct2);
-    assert_eq!(struct1, expected_struct);
+        .apply(&mut target, update);
+    assert_eq!(target, expected);
 }
 
 #[test]
 fn self_child_is_none() {
-    let mut struct1 = Parent { child: None, c: 3 };
-    let struct2 = Parent {
+    let mut target = Parent { child: None, c: 3 };
+    let update = Parent {
         child: Some(Child { a: 4, b: 5 }),
         c: 6,
     };
 
-    let expected_struct = Parent {
+    let expected = Parent {
         child: Some(Child { a: 0, b: 5 }),
         c: 6,
     };
 
     FieldMask::try_from(FieldMaskInput(vec!["child.b", "c"].into_iter()))
         .expect("unable to deserialize mask")
-        .apply(&mut struct1, struct2);
-    assert_eq!(struct1, expected_struct);
+        .apply(&mut target, update);
+    assert_eq!(target, expected);
 }
 
 #[test]
 fn both_children_are_none() {
-    let mut struct1 = Parent { child: None, c: 3 };
-    let struct2 = Parent { child: None, c: 6 };
+    let mut target = Parent { child: None, c: 3 };
+    let update = Parent { child: None, c: 6 };
 
-    let expected_struct = Parent { child: None, c: 6 };
+    let expected = Parent { child: None, c: 6 };
 
     FieldMask::try_from(FieldMaskInput(vec!["child.b", "c"].into_iter()))
         .expect("unable to deserialize mask")
-        .apply(&mut struct1, struct2);
-    assert_eq!(struct1, expected_struct);
+        .apply(&mut target, update);
+    assert_eq!(target, expected);
 }
 
 #[test]
 fn no_mask_applied_to_child() {
-    let mut struct1 = Parent {
+    let mut target = Parent {
         child: Some(Child { a: 1, b: 2 }),
         c: 3,
     };
-    let struct2 = Parent { child: None, c: 6 };
+    let update = Parent { child: None, c: 6 };
 
-    let expected_struct = Parent {
+    let expected = Parent {
         child: Some(Child { a: 1, b: 2 }),
         c: 6,
     };
 
     FieldMask::try_from(FieldMaskInput(vec!["c"].into_iter()))
         .expect("unable to deserialize mask")
-        .apply(&mut struct1, struct2);
-    assert_eq!(struct1, expected_struct);
+        .apply(&mut target, update);
+    assert_eq!(target, expected);
 }
 
 #[test]
 fn full_child_mask() {
-    let mut struct1 = Parent {
+    let mut target = Parent {
         child: Some(Child { a: 1, b: 2 }),
         c: 3,
     };
-    let struct2 = Parent { child: None, c: 6 };
+    let update = Parent { child: None, c: 6 };
 
-    let expected_struct = Parent { child: None, c: 6 };
+    let expected = Parent { child: None, c: 6 };
 
     FieldMask::try_from(FieldMaskInput(vec!["child", "c"].into_iter()))
         .expect("unable to deserialize mask")
-        .apply(&mut struct1, struct2);
-    assert_eq!(struct1, expected_struct);
+        .apply(&mut target, update);
+    assert_eq!(target, expected);
 }

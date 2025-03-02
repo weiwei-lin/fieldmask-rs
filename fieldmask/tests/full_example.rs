@@ -38,7 +38,7 @@ impl Default for OneOfField {
 
 #[test]
 fn case_1() {
-    let mut target_struct = Parent {
+    let mut target = Parent {
         primitive: "string".into(),
         child_1: Child {
             field_one: "child_1 field one".into(),
@@ -51,7 +51,7 @@ fn case_1() {
         one_of_field: Some(OneOfField::VariantOne("variant one".into())),
         unit_field: UnitField::One,
     };
-    let src_struct = Parent {
+    let update = Parent {
         primitive: "updated string".into(),
         child_1: Child {
             field_one: "updated child_1 field one".into(),
@@ -65,7 +65,7 @@ fn case_1() {
         unit_field: UnitField::Two,
     };
 
-    let expected_struct = Parent {
+    let expected = Parent {
         primitive: "updated string".into(),
         child_1: Child {
             field_one: "child_1 field one".into(),
@@ -90,7 +90,7 @@ fn case_1() {
         .into_iter(),
     ))
     .expect("unable to deserialize mask")
-    .apply(&mut target_struct, src_struct);
+    .apply(&mut target, update);
 
-    assert_eq!(target_struct, expected_struct);
+    assert_eq!(target, expected);
 }
