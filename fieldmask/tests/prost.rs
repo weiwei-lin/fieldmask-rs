@@ -1,4 +1,4 @@
-#![cfg(feature = "prost-integration")]
+#![cfg(feature = "prost")]
 
 use std::convert::TryFrom;
 
