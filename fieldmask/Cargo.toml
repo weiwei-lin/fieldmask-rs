@@ -17,6 +17,6 @@ prost = ["dep:prost", "fieldmask_derive/prost"]
 [dependencies]
 derive_more = "0.99.17"
 fieldmask_derive = { version = "0.0.5", path = "../fieldmask_derive" }
-prost = { version = "0.12", optional = true }
+prost = { version = "0.13", optional = true }
 textwrap = "0.16.1"
 thiserror = "1.0.40"
