@@ -5,7 +5,7 @@ version = "0.0.5"
 repository = "https://github.com/weiwei-lin/fieldmask-rs"
 authors = ["Weiwei Lin <weiwei.will.lin@gmail.com>"]
 license = "MIT OR Apache-2.0"
-edition = "2018"
+edition = "2024"
 include = [
     "**/*.rs",
     "Cargo.toml",
@@ -18,4 +18,5 @@ prost-integration = ["prost", "fieldmask_derive/prost"]
 derive_more = "0.99.17"
 fieldmask_derive = { version = "0.0.5", path = "../fieldmask_derive" }
 prost = { version = "0.12", optional = true }
+textwrap = "0.16.1"
 thiserror = "1.0.40"

@@ -1,8 +1,8 @@
 use std::convert::TryFrom;
 
-use fieldmask::{FieldMask, FieldMaskInput, Maskable};
+use fieldmask::{Mask, MaskInput, Maskable};
 
-#[derive(Debug, PartialEq, Maskable)]
+#[derive(Debug, Maskable, PartialEq)]
 struct Flat {
     a: u32,
     b: u32,
@@ -10,36 +10,41 @@ struct Flat {
 
 #[test]
 fn flat() {
-    let mut target = Flat { a: 1, b: 2 };
-    let update = Flat { a: 3, b: 4 };
+    let target = Flat { a: 1, b: 2 };
+    let mask = vec!["b"];
+    let expected = Flat { a: Default::default(), b: 2 };
 
-    let expected = Flat { a: 1, b: 4 };
+    let mask =
+        Mask::<Flat>::try_from(MaskInput(mask.into_iter())).expect("unable to deserialize mask");
+    let actual = target.project(&mask);
 
-    FieldMask::try_from(FieldMaskInput(vec!["b"].into_iter()))
-        .expect("unable to deserialize mask")
-        .apply(&mut target, update);
-    assert_eq!(target, expected);
+    assert_eq!(expected, actual);
 }
 
 #[test]
 fn empty_mask() {
-    let mut struct1 = Flat { a: 1, b: 2 };
-    let struct2 = Flat { a: 3, b: 4 };
+    let target = Flat { a: 1, b: 2 };
+    let mask = vec![];
+    let expected = Flat { a: 1, b: 2 };
 
-    let expected_struct = Flat { a: 1, b: 2 };
+    let mask =
+        Mask::<Flat>::try_from(MaskInput(mask.into_iter())).expect("unable to deserialize mask");
+    let actual = target.project(&mask);
 
-    FieldMask::try_from(FieldMaskInput(vec![].into_iter()))
-        .expect("unable to deserialize mask")
-        .apply(&mut struct1, struct2);
-    assert_eq!(struct1, expected_struct);
+    assert_eq!(expected, actual);
 }
 
 #[test]
 fn nested_mask() {
+    let mask = vec!["a.b"];
+
     assert_eq!(
-        FieldMask::<Flat>::try_from(FieldMaskInput(vec!["a.b"].into_iter()))
+        Mask::<Flat>::try_from(MaskInput(mask.into_iter()))
             .expect_err("should fail to parse fieldmask")
-            .entry,
-        "a.b",
+            .to_string(),
+        "\
+        error in field \"a\":\n\
+        \ttype `u32` has no field named \"b\"\
+        ",
     );
 }

@@ -1,11 +1,13 @@
+#![allow(dead_code)]
+
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{
-    braced, parenthesized,
+    Attribute, Expr, Generics, Ident, Meta, NestedMeta, Path, Token, Type, Visibility, braced,
+    parenthesized,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     token::{Brace, Paren},
-    Attribute, Expr, Generics, Ident, Meta, NestedMeta, Path, Token, Type, Visibility,
 };
 
 #[cfg(feature = "prost")]

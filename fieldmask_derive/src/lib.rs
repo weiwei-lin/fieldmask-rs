@@ -1,7 +1,7 @@
 use inflector::cases::snakecase::to_snake_case;
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, Index};
+use syn::{Index, parse_macro_input};
 use utils::{Item, ItemInfo, ItemType};
 
 mod utils;
@@ -17,148 +17,153 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
     } = input.get_info();
 
     let (impl_generics, ty_generics, where_clauses) = generics.split_for_impl();
-    let field_indices = fields.iter().enumerate().map(|(i, _field)| Index::from(i));
     let field_idents = fields.iter().map(|field| &field.ident).collect::<Vec<_>>();
-    let field_types = fields.iter().map(|f| f.ty);
-    let match_arms = fields.iter().enumerate().map(|(i, field)| {
-        let index = Index::from(i);
+
+    let mask_type_arms = fields.iter().map(|field| {
+        let field_ty = field.ty;
+        if field.is_flatten {
+            quote! {
+                ::fieldmask::Mask<#field_ty>,
+            }
+        } else {
+            quote! {
+                ::core::option::Option<::fieldmask::Mask<#field_ty>>,
+            }
+        }
+    });
+
+    // For each field in the struct, generate a match arm that processes a matching field path.
+    let make_mask_include_field_match_arms = fields.iter().enumerate().map(|(i, field)| {
+        let field_index = Index::from(i);
+        // For flatten field, try to make the field parse the mask. If the field is not found, go to
+        // the next match arm.
         if field.is_flatten {
             quote! {
                 _ if mask
-                    .0
-                    .#index
-                    .try_bitor_assign(field_path)
+                    .#field_index
+                    .include_field(field_path)
                     .map(|_| true)
-                    .or_else(|l| if l.depth == 0 { Ok(false) } else { Err(l) })? =>
-                {}
+                    .or_else(|e| {
+                        if let ::fieldmask::DeserializeMaskError::FieldNotFound { .. } = e {
+                            ::core::result::Result::Ok(false)
+                        } else {
+                            ::core::result::Result::Err(e)
+                        }
+                    })? =>
+                {
+                    ::core::result::Result::Ok(())
+                }
             }
         } else {
-            let prefix = to_snake_case(&field.ident.to_string());
+            // Convert to snake case to match the field name in the mask.
+            // This is useful for oneof fields where each oneof field is represented by a variant
+            // in an enum, which is typically in PascalCase.
+            let field_name = to_snake_case(&field.ident.to_string());
             quote! {
-                [#prefix, tail @ ..] => mask.0.#index.try_bitor_assign(tail).map_err(|mut e| {
-                    e.depth += 1;
-                    e
-                })?,
-            }
-        }
-    });
-    let match_arm_groups = fields.iter().map(|target_field| {
-        let target_ident = target_field.ident;
-        let arms = fields.iter().enumerate().map(|(i, update_field)| {
-            let index = Index::from(i);
-            let update_ident = update_field.ident;
-            if update_ident == target_ident {
-                quote! {
-                    Self::#update_ident(s) if mask.0.#index != ::fieldmask::FieldMask::default() => {
-                        mask.0.#index.apply(t, s);
-                    }
-                }
-            } else {
-                let update_ty = update_field.ty;
-                quote! {
-                    Self::#update_ident(s) if mask.0.#index != ::fieldmask::FieldMask::default() => {
-                        let mut new = <#update_ty>::default();
-                        mask.0.#index.apply(&mut new, s);
-                        *self = Self::#update_ident(new);
-                    }
-                }
-            }
-        });
-        quote! {
-            Self::#target_ident(t) => match update {
-                #(#arms)*
-                _ => return false,
-            }
-        }
-    });
-
-    let additional_impl = match item_type {
-        ItemType::Enum => quote! {
-            impl#impl_generics ::fieldmask::OptionMaskable for #ident#ty_generics
-            #where_clauses
-            {
-                fn apply_mask(&mut self, update: Self, mask: &Self::Mask) -> bool {
-                    match self {
-                        #(#match_arm_groups)*
-                    }
-                    return true;
-                }
-            }
-        },
-        ItemType::UnitEnum => quote! {
-            impl#impl_generics ::fieldmask::SelfMaskable for #ident#ty_generics
-            #where_clauses
-            {
-                fn apply_mask(&mut self, update: Self, mask: &Self::Mask) {
-                    if *mask {
-                        *self = update;
-                    }
-                }
-            }
-        },
-        ItemType::Struct => quote! {
-            impl#impl_generics ::fieldmask::SelfMaskable for #ident#ty_generics
-            #where_clauses
-            {
-                fn apply_mask(&mut self, update: Self, mask: &Self::Mask) {
-                    #(mask.0.#field_indices.apply(&mut self.#field_idents, update.#field_idents);)*
-                }
-            }
-        },
-    };
-
-    let deserialize_error = quote! {
-        ::core::result::Result::Err(::fieldmask::DeserializeMaskError{
-            type_str: stringify!(#ident),
-            field: field_path[0].into(),
-            depth: 0,
-        })
-    };
-
-    match item_type {
-        ItemType::UnitEnum => quote! {
-            impl#impl_generics ::fieldmask::Maskable for #ident#ty_generics
-            #where_clauses
-            {
-                type Mask = bool;
-
-                fn make_mask_include_field(
-                    mask: &mut Self::Mask,
-                    field_path: &[&::core::primitive::str],
-                ) -> ::core::result::Result<(), ::fieldmask::DeserializeMaskError> {
-                    if field_path.len() == 0 {
-                        *mask = true;
-                        Ok(())
-                    } else {
-                        #deserialize_error
-                    }
-                }
-            }
-
-            #additional_impl
-        },
-        _ => quote! {
-            impl#impl_generics ::fieldmask::Maskable for #ident#ty_generics
-            #where_clauses
-            {
-                type Mask = ::fieldmask::BitwiseWrap<(#(::fieldmask::FieldMask<#field_types>,)*)>;
-
-                fn make_mask_include_field(
-                    mask: &mut Self::Mask,
-                    field_path: &[&::core::primitive::str],
-                ) -> ::core::result::Result<(), ::fieldmask::DeserializeMaskError> {
-                    match field_path {
-                        // If field_path is empty, set mask to match everything.
-                        [] => *mask = !Self::Mask::default(),
-                        #(#match_arms)*
-                        _ => return #deserialize_error,
-                    }
+                [#field_name, tail @ ..] => {
+                    mask.#field_index
+                        .get_or_insert_with(::core::default::Default::default)
+                        .include_field(tail)
+                        .map_err(|err| {
+                            ::fieldmask::DeserializeMaskError::InvalidField {
+                                field: #field_name,
+                                err: ::std::boxed::Box::new(err),
+                            }
+                        })?;
                     Ok(())
                 }
             }
+        }
+    });
 
-            #additional_impl
-        },
+    let project_impl = match item_type {
+        ItemType::Enum => {
+            let match_arms = fields.iter().enumerate().map(|(i, field)| {
+                let index = Index::from(i);
+                let ident = field.ident;
+                quote! {
+                    Self::#ident(inner) => Self::#ident(
+                        mask.#index
+                            .as_ref()
+                            .map(|mask| inner.project(mask))
+                            .unwrap_or_default()
+                    ),
+                }
+            });
+            quote! {
+                fn project(self, mask: &Self::Mask) -> Self {
+                    match self {
+                        #(#match_arms)*
+                    }
+                }
+            }
+        }
+        ItemType::UnitEnum => {
+            // Unit enums have no fields, the field mask is always empty.
+            quote! {
+                fn project(self, mask: &Self::Mask) -> Self {
+                    self
+                }
+            }
+        }
+        ItemType::Struct => {
+            // For each field in the struct, generate a field arm that performs projection on the field.
+            let field_arms = fields.iter().enumerate().map(|(i, field)| {
+                let index = Index::from(i);
+                let ident = field.ident;
+
+                if field.is_flatten {
+                    quote! {
+                        #ident: #ident.project(&mask.#index),
+                    }
+                } else {
+                    quote! {
+                        #ident: mask
+                            .#index
+                            .as_deref()
+                            .map(|mask| #ident.project(mask))
+                            .unwrap_or_default(),
+                    }
+                }
+            });
+
+            quote! {
+                fn project(self, mask: &Self::Mask) -> Self {
+                    if mask == &Self::Mask::default() {
+                        return self;
+                    }
+
+                    let Self { #(#field_idents),* } = self;
+                    Self {
+                        #(#field_arms)*
+                    }
+                }
+            }
+        }
+    };
+
+    quote! {
+        impl #impl_generics ::fieldmask::Maskable for #ident #ty_generics
+        #where_clauses
+        {
+            type Mask = (#(#mask_type_arms)*);
+
+            fn make_mask_include_field<'a>(
+                mask: &mut Self::Mask,
+                field_path: &[&'a ::core::primitive::str],
+            ) -> ::core::result::Result<(), ::fieldmask::DeserializeMaskError<'a>> {
+                match field_path {
+                    [] => ::core::result::Result::Ok(()),
+                    #(#make_mask_include_field_match_arms)*
+                    [field, ..] => ::core::result::Result::Err(::fieldmask::DeserializeMaskError::FieldNotFound {
+                        type_name: stringify!(#ident),
+                        field,
+                    }),
+                }
+            }
+
+            #project_impl
+        }
     }
     .into()
 }

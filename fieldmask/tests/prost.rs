@@ -2,7 +2,7 @@
 
 use std::convert::TryFrom;
 
-use fieldmask::{FieldMask, FieldMaskInput, Maskable};
+use fieldmask::{Mask, MaskInput, Maskable};
 
 #[derive(PartialEq, Maskable, ::prost::Message)]
 struct Parent {
@@ -40,7 +40,7 @@ impl Default for OneOfField {
 
 #[test]
 fn prost() {
-    let mut target = Parent {
+    let target = Parent {
         primitive: "string".into(),
         child_1: Some(Child {
             field_one: "child_1 field one".into(),
@@ -52,43 +52,28 @@ fn prost() {
         }),
         one_of_field: Some(OneOfField::VariantOne("variant one".into())),
     };
-    let update = Parent {
-        primitive: "updated string".into(),
-        child_1: Some(Child {
-            field_one: "updated child_1 field one".into(),
-            field_two: 10,
-        }),
-        child_2: Some(Child {
-            field_one: "updated child_2 field one".into(),
-            field_two: 20,
-        }),
-        one_of_field: Some(OneOfField::VariantTwo(50)),
-    };
-
+    let mask = vec![
+        "primitive",
+        "child_1.field_two",
+        "child_2", // if child properties are not specified, all properties are included.
+        "variant_two", // if a field is marked with `flatten`, it's properties are merged with its parents properties.
+    ];
     let expected = Parent {
-        primitive: "updated string".into(),
+        primitive: "string".into(),
         child_1: Some(Child {
-            field_one: "child_1 field one".into(),
-            field_two: 10,
+            field_one: Default::default(),
+            field_two: 1,
         }),
         child_2: Some(Child {
-            field_one: "updated child_2 field one".into(),
-            field_two: 20,
+            field_one: "child_2 field one".into(),
+            field_two: 2,
         }),
-        one_of_field: Some(OneOfField::VariantTwo(50)),
+        one_of_field: Some(OneOfField::VariantOne(Default::default())),
     };
 
-    FieldMask::try_from(FieldMaskInput(
-        vec![
-            "primitive",
-            "child_1.field_two",
-            "child_2", // if child properties are not specified, all properties are included.
-            "variant_two", // if a field is marked with `flatten`, it's properties are merged with its parents properties.
-        ]
-        .into_iter(),
-    ))
-    .expect("unable to deserialize mask")
-    .apply(&mut target, update);
+    let mask =
+        Mask::<Parent>::try_from(MaskInput(mask.into_iter())).expect("unable to deserialize mask");
+    let actual = target.project(&mask);
 
-    assert_eq!(target, expected);
+    assert_eq!(expected, actual);
 }

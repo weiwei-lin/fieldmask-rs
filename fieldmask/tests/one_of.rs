@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use fieldmask::{FieldMask, FieldMaskInput, Maskable};
+use fieldmask::{Mask, MaskInput, Maskable};
 
 #[derive(Debug, PartialEq, Maskable)]
 enum OneOf {
@@ -9,157 +9,103 @@ enum OneOf {
     AnotherCase(String),
 }
 
-impl Default for OneOf {
-    fn default() -> Self {
-        Self::A(String::default())
-    }
-}
-
 #[derive(Debug, PartialEq, Maskable)]
 struct Parent {
-    #[fieldmask(flatten)]
     one_of: Option<OneOf>,
     c: u32,
 }
 
 #[test]
-fn one_of() {
-    let mut target = Parent {
-        one_of: Some(OneOf::A("a".into())),
+fn selected_variant_is_the_same() {
+    let target = Parent {
+        one_of: Some(OneOf::B("b".into())),
         c: 1,
     };
-    let update = Parent {
-        one_of: Some(OneOf::B("b".into())),
-        c: 2,
-    };
-
+    let mask = vec!["one_of.b", "c"];
     let expected = Parent {
         one_of: Some(OneOf::B("b".into())),
-        c: 2,
+        c: 1,
     };
 
-    FieldMask::try_from(FieldMaskInput(vec!["b", "c"].into_iter()))
-        .expect("unable to deserialize mask")
-        .apply(&mut target, update);
-    assert_eq!(target, expected);
+    let mask =
+        Mask::<Parent>::try_from(MaskInput(mask.into_iter())).expect("unable to deserialize mask");
+    let actual = target.project(&mask);
+
+    assert_eq!(expected, actual);
 }
 
 #[test]
-fn different_variant() {
-    let mut target = Parent {
-        one_of: Some(OneOf::A("a".into())),
+fn selected_variant_is_different() {
+    let target = Parent {
+        one_of: Some(OneOf::B("b".into())),
         c: 1,
     };
-    let update = Parent {
-        one_of: Some(OneOf::B("b".into())),
-        c: 2,
+    let mask = vec!["one_of.a", "c"];
+    let expected = Parent {
+        one_of: Some(OneOf::B("".into())),
+        c: 1,
     };
 
-    let expected = Parent { one_of: None, c: 2 };
+    let mask =
+        Mask::<Parent>::try_from(MaskInput(mask.into_iter())).expect("unable to deserialize mask");
+    let actual = target.project(&mask);
 
-    FieldMask::try_from(FieldMaskInput(vec!["a", "c"].into_iter()))
-        .expect("unable to deserialize mask")
-        .apply(&mut target, update);
-    assert_eq!(target, expected);
+    assert_eq!(expected, actual);
 }
 
 #[test]
-fn different_variant_both_in_mask() {
-    let mut target = Parent {
-        one_of: Some(OneOf::A("a".into())),
+fn both_variants_selected() {
+    let target = Parent {
+        one_of: Some(OneOf::B("b".into())),
         c: 1,
     };
-    let update = Parent {
-        one_of: Some(OneOf::B("b".into())),
-        c: 2,
-    };
-
+    let mask = vec!["one_of.a", "one_of.b", "c"];
     let expected = Parent {
         one_of: Some(OneOf::B("b".into())),
-        c: 2,
-    };
-
-    FieldMask::try_from(FieldMaskInput(vec!["a", "b", "c"].into_iter()))
-        .expect("unable to deserialize mask")
-        .apply(&mut target, update);
-    assert_eq!(target, expected);
-}
-
-#[test]
-fn no_field() {
-    let mut target = Parent {
-        one_of: Some(OneOf::A("a".into())),
         c: 1,
     };
-    let update = Parent {
-        one_of: Some(OneOf::A("a2".into())),
-        c: 2,
-    };
 
-    let expected = Parent { one_of: None, c: 2 };
+    let mask =
+        Mask::<Parent>::try_from(MaskInput(mask.into_iter())).expect("unable to deserialize mask");
+    let actual = target.project(&mask);
 
-    FieldMask::try_from(FieldMaskInput(vec!["b", "c"].into_iter()))
-        .expect("unable to deserialize mask")
-        .apply(&mut target, update);
-    assert_eq!(target, expected);
+    assert_eq!(expected, actual);
 }
 
 #[test]
-fn matched_field() {
-    let mut target = Parent {
-        one_of: Some(OneOf::A("a".into())),
+fn no_field_selected() {
+    let target = Parent {
+        one_of: Some(OneOf::B("b".into())),
         c: 1,
     };
-    let update = Parent {
-        one_of: Some(OneOf::A("a2".into())),
-        c: 2,
-    };
-
+    let mask = vec!["c"];
     let expected = Parent {
-        one_of: Some(OneOf::A("a2".into())),
-        c: 2,
+        one_of: Default::default(),
+        c: 1,
     };
 
-    FieldMask::try_from(FieldMaskInput(vec!["a", "c"].into_iter()))
-        .expect("unable to deserialize mask")
-        .apply(&mut target, update);
-    assert_eq!(target, expected);
-}
+    let mask =
+        Mask::<Parent>::try_from(MaskInput(mask.into_iter())).expect("unable to deserialize mask");
+    let actual = target.project(&mask);
 
-#[test]
-fn self_none() {
-    let mut target = Parent { one_of: None, c: 1 };
-    let update = Parent {
-        one_of: Some(OneOf::A("a2".into())),
-        c: 2,
-    };
-
-    let expected = Parent {
-        one_of: Some(OneOf::A("a2".into())),
-        c: 2,
-    };
-
-    FieldMask::try_from(FieldMaskInput(vec!["a", "c"].into_iter()))
-        .expect("unable to deserialize mask")
-        .apply(&mut target, update);
-    assert_eq!(target, expected);
+    assert_eq!(expected, actual);
 }
 
 #[test]
 fn snake_case() {
-    let mut target = Parent { one_of: None, c: 1 };
-    let update = Parent {
-        one_of: Some(OneOf::AnotherCase("a2".into())),
-        c: 2,
+    let target = Parent {
+        one_of: Some(OneOf::AnotherCase("another".into())),
+        c: 1,
     };
-
+    let mask = vec!["one_of.another_case", "c"];
     let expected = Parent {
-        one_of: Some(OneOf::AnotherCase("a2".into())),
-        c: 2,
+        one_of: Some(OneOf::AnotherCase("another".into())),
+        c: 1,
     };
 
-    FieldMask::try_from(FieldMaskInput(vec!["another_case", "c"].into_iter()))
-        .expect("unable to deserialize mask")
-        .apply(&mut target, update);
-    assert_eq!(target, expected);
+    let mask =
+        Mask::<Parent>::try_from(MaskInput(mask.into_iter())).expect("unable to deserialize mask");
+    let actual = target.project(&mask);
+
+    assert_eq!(expected, actual);
 }
