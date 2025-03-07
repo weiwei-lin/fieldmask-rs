@@ -18,6 +18,32 @@ pub enum DeserializeMaskError<'a> {
     },
 }
 
+/// Options for updating a message with a field mask.
+#[derive(Debug, Default)]
+pub struct UpdateOptions {
+    /// If true, the repeated field in `self` will be replaced by the repeated field in `source`.
+    /// Otherwise, the repeated field in `source` will be appended to the repeated field in `self`.
+    ///
+    /// Defaults to `false`. The default behavior is consistent with [the official Java
+    /// implementation][1].
+    ///
+    /// [1]: https://protobuf.dev/reference/java/api-docs/com/google/protobuf/FieldMask.html
+    pub replace_repeated: bool,
+
+    /// Controls the behavior of updating the value of a message field in `self` with the same value
+    /// of the same field in `source` when the message field is specified in the last position of
+    /// the field mask.
+    ///
+    /// If true, the message field in `self` will be replaced by the message field in `source`.
+    /// Otherwise, the message field in `source` will be merged into the message field in `self`.
+    ///
+    /// Defaults to `false`. The default behavior is consistent with [the official Java
+    /// implementation][1].
+    ///
+    /// [1]: https://protobuf.dev/reference/java/api-docs/com/google/protobuf/FieldMask.html
+    pub replace_message: bool,
+}
+
 /// A trait for types that have an associated field mask type.
 pub trait Maskable {
     /// A type that can be used to represent a field mask for this particular type.
@@ -35,11 +61,16 @@ pub trait Maskable {
     /// used as the initial mask that selects no fields.
     ///
     /// `Mask` must also implements the `PartialEq` trait. We need to compare the mask with the
-    /// default mask to determine whether any of the field is selected. When no field is selected,
-    /// the entire object is selected during projection, non-default fields are selected during
-    /// update. See https://protobuf.dev/reference/java/api-docs/com/google/protobuf/FieldMask.html
-    /// for the behavior of empty field masks.
+    /// default mask to determine whether any of the field is selected.
+    ///
+    /// An empty `mask` (i.e. the default value) is the same as a full `mask`. This is consistent
+    /// with the [official field mask protobuf specification][1].
+    ///
+    /// [1]: https://protobuf.dev/reference/protobuf/google.protobuf/#field-mask.
     type Mask: Default + PartialEq;
+
+    // Returns a full mask that selects all fields.
+    fn full_mask() -> Self::Mask;
 
     /// Make `mask` include the field specified by `field_path``.
     ///
@@ -59,14 +90,112 @@ pub trait Maskable {
         // 2. It's easier to distinguish empty field mask (e.g. "") and empty tail (e.g. "parent.").
         field_path: &[&'a str],
     ) -> Result<(), DeserializeMaskError<'a>>;
-
-    /// Project the fields of `self` according to `mask`.
-    fn project(self, mask: &Self::Mask) -> Self;
 }
 
-// If a type is `Maskable`, then `Option<T>` is also `Maskable`.
+/// A trait for types that can be projected or updated according to a field mask.
+pub trait SelfMaskable: Maskable {
+    /// Project the fields of `self` according to `mask`.
+    fn project(self, mask: &Self::Mask) -> Self;
+
+    /// Update the fields of `self` with the fields of `source` according to `mask`.
+    ///
+    /// Note that a field of message type with unspecified value is the same as the field with a
+    /// default value. This must be true. Otherwise, we cannot clearly define the behavior of
+    /// the update operation when one of `self` or `source` is `None`.
+    fn update(&mut self, source: Self, mask: &Self::Mask, options: &UpdateOptions);
+
+    /// The same as `update`, but the field is treated as a field of the parent message.
+    ///
+    /// This means an empty `mask` is no longer treated as a full `mask`.
+    fn update_as_field(&mut self, source: Self, mask: &Self::Mask, options: &UpdateOptions);
+
+    /// Merge the fields of `source` into `self`.
+    fn merge(&mut self, source: Self, options: &UpdateOptions);
+}
+
+/// A trait for types that can be projected or updated according to a field mask when wrapped in an
+/// `Option`.
+pub trait OptionMaskable: Maskable + Sized {
+    /// Similar to `SelfMaskable::project`, but it takes `Option<Self>` instead of `Self`.
+    fn option_project(this: Option<Self>, mask: &Self::Mask) -> Option<Self>;
+
+    /// Similar to `SelfMaskable::update`, but it takes `Option<Self>` instead of `Self`.
+    fn option_update(
+        this: &mut Option<Self>,
+        source: Option<Self>,
+        mask: &Self::Mask,
+        options: &UpdateOptions,
+    );
+
+    /// Similar to `SelfMaskable::update_as_field`, but it takes `Option<Self>` instead of `Self`.
+    fn option_update_as_field(
+        this: &mut Option<Self>,
+        source: Option<Self>,
+        mask: &Self::Mask,
+        options: &UpdateOptions,
+    );
+
+    /// Similar to `SelfMaskable::merge`, but it takes `Option<Self>` instead of `Self`.
+    fn option_merge(this: &mut Option<Self>, source: Option<Self>, options: &UpdateOptions);
+}
+
+impl<T: SelfMaskable + Default> OptionMaskable for T {
+    fn option_project(this: Option<Self>, mask: &Self::Mask) -> Option<Self> {
+        this.map(|inner| inner.project(mask))
+    }
+
+    fn option_update(
+        this: &mut Option<Self>,
+        source: Option<Self>,
+        mask: &Self::Mask,
+        options: &UpdateOptions,
+    ) {
+        if mask == &Self::Mask::default() {
+            Self::option_update_as_field(this, source, &Self::full_mask(), options);
+            return;
+        }
+
+        Self::option_update_as_field(this, source, mask, options);
+    }
+
+    fn option_update_as_field(
+        this: &mut Option<Self>,
+        source: Option<Self>,
+        mask: &Self::Mask,
+        options: &UpdateOptions,
+    ) {
+        match (this.as_mut(), source) {
+            (Some(this_inner), Some(source_inner)) => {
+                this_inner.update_as_field(source_inner, mask, options);
+            }
+            (Some(this_inner), None) => {
+                this_inner.update_as_field(Self::default(), mask, options);
+            }
+            (None, source) => {
+                *this = source.map(|s| s.project(mask));
+            }
+        }
+    }
+
+    fn option_merge(this: &mut Option<Self>, source: Option<Self>, options: &UpdateOptions) {
+        match (this.as_mut(), source) {
+            (Some(this_inner), Some(source_inner)) => {
+                this_inner.merge(source_inner, options);
+            }
+            (_, None) => {}
+            (None, source) => {
+                *this = source;
+            }
+        }
+    }
+}
+
 impl<T: Maskable> Maskable for Option<T> {
     type Mask = T::Mask;
+
+    fn full_mask() -> Self::Mask {
+        T::full_mask()
+    }
 
     fn make_mask_include_field<'a>(
         mask: &mut Self::Mask,
@@ -74,18 +203,51 @@ impl<T: Maskable> Maskable for Option<T> {
     ) -> Result<(), DeserializeMaskError<'a>> {
         T::make_mask_include_field(mask, field_path)
     }
+}
 
+impl<T: OptionMaskable> SelfMaskable for Option<T> {
     fn project(self, mask: &Self::Mask) -> Self {
-        self.map(|inner| inner.project(mask))
+        T::option_project(self, mask)
+    }
+
+    fn update(&mut self, source: Self, mask: &Self::Mask, options: &UpdateOptions) {
+        T::option_update(self, source, mask, options)
+    }
+
+    fn update_as_field(&mut self, source: Self, mask: &Self::Mask, options: &UpdateOptions) {
+        T::option_update_as_field(self, source, mask, options)
+    }
+
+    fn merge(&mut self, source: Self, options: &UpdateOptions) {
+        T::option_merge(self, source, options)
     }
 }
 
 macro_rules! maskable_atomic {
     ($name:ident$(<$($ty_param:ident),*>)? $(where $($where_clause:tt)+)?) => {
+        maskable_atomic!(
+            $name$(<$($ty_param),*>)? $(where $($where_clause)+)?
+            fn merge(&mut self, source: Self, _options: &UpdateOptions) {
+                if source != Default::default() {
+                    *self = source;
+                }
+            }
+        );
+    };
+    (
+        $name:ident$(<$($ty_param:ident),*>)? $(where $($where_clause:tt)+)?
+        fn merge($($fn_params:tt)*) {
+            $($fn_impl:tt)*
+        }
+    ) => {
         impl$(<$($ty_param),*>)? Maskable for $name$(<$($ty_param),*>)?
         $(where $($where_clause)+)?
         {
             type Mask = ();
+
+            fn full_mask() -> Self::Mask {
+                ()
+            }
 
             fn make_mask_include_field<'a>(_mask: &mut Self::Mask, field_path: &[&'a str]) -> Result<(), DeserializeMaskError<'a>> {
                 if field_path.is_empty() {
@@ -96,9 +258,25 @@ macro_rules! maskable_atomic {
                     field: field_path[0],
                 })
             }
+        }
 
+        impl$(<$($ty_param),*>)? SelfMaskable for $name$(<$($ty_param),*>)?
+        $(where $($where_clause)+)?
+        {
             fn project(self, _mask: &Self::Mask) -> Self {
                 return self;
+            }
+
+            fn update(&mut self, source: Self, mask: &Self::Mask, options: &UpdateOptions) {
+                self.update_as_field(source, mask, options);
+            }
+
+            fn update_as_field(&mut self, source: Self, _mask: &Self::Mask, _options: &UpdateOptions) {
+                *self = source;
+            }
+
+            fn merge($($fn_params)*) {
+                $($fn_impl)*
             }
         }
     };
@@ -123,9 +301,67 @@ maskable_atomic!(u128);
 maskable_atomic!(isize);
 maskable_atomic!(usize);
 
-maskable_atomic!(String);
-maskable_atomic!(Vec<T>);
-maskable_atomic!(HashMap<K, V>);
+maskable_atomic!(
+    String
+    fn merge(&mut self, source: Self, _options: &UpdateOptions) {
+        if !source.is_empty() {
+            *self = source;
+        }
+    }
+);
+maskable_atomic!(
+    HashMap<K, V>
+
+    fn merge(&mut self, source: Self, _options: &UpdateOptions) {
+        if !source.is_empty() {
+            *self = source;
+        }
+    }
+);
+
+impl<T> Maskable for Vec<T> {
+    type Mask = ();
+
+    fn full_mask() -> Self::Mask {
+        ()
+    }
+
+    fn make_mask_include_field<'a>(
+        _mask: &mut Self::Mask,
+        field_path: &[&'a str],
+    ) -> Result<(), DeserializeMaskError<'a>> {
+        if field_path.is_empty() {
+            return Ok(());
+        }
+        Err(DeserializeMaskError::FieldNotFound {
+            type_name: "Vec",
+            field: field_path[0],
+        })
+    }
+}
+
+impl<T> SelfMaskable for Vec<T> {
+    fn project(self, _mask: &Self::Mask) -> Self {
+        return self;
+    }
+
+    fn update(&mut self, source: Self, mask: &Self::Mask, options: &UpdateOptions) {
+        self.update_as_field(source, mask, options);
+    }
+
+    fn update_as_field(&mut self, source: Self, _mask: &Self::Mask, options: &UpdateOptions) {
+        self.merge(source, options);
+    }
+
+    fn merge(&mut self, source: Self, options: &UpdateOptions) {
+        if options.replace_repeated {
+            *self = source;
+            return;
+        }
+
+        self.extend(source);
+    }
+}
 
 #[cfg(feature = "prost")]
 mod prost_integration {
@@ -133,5 +369,12 @@ mod prost_integration {
 
     use super::*;
 
-    maskable_atomic!(Bytes);
+    maskable_atomic!(
+        Bytes
+        fn merge(&mut self, source: Self, _options: &UpdateOptions) {
+            if !source.is_empty() {
+                *self = source;
+            }
+        }
+    );
 }

@@ -1,12 +1,18 @@
 use std::convert::TryFrom;
 
-use fieldmask::{Mask, MaskInput, Maskable};
+use fieldmask::{Mask, MaskInput, Maskable, SelfMaskable};
 
 #[derive(Debug, PartialEq, Maskable)]
 enum OneOf {
     A(String),
     B(String),
     AnotherCase(String),
+}
+
+impl Default for OneOf {
+    fn default() -> Self {
+        Self::A("".into())
+    }
 }
 
 #[derive(Debug, PartialEq, Maskable)]

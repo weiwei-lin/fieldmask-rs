@@ -22,14 +22,14 @@ impl<T: Parse> Parse for Wrap<Punctuated<T, Token![,]>> {
 }
 
 pub enum Item {
-    Struct(ItemStruct),
     Enum(ItemEnum),
+    Struct(ItemStruct),
 }
 
 pub enum ItemType {
-    Struct,
-    Enum,
     UnitEnum,
+    Enum,
+    Struct,
 }
 
 pub struct ItemStruct {
@@ -297,30 +297,8 @@ impl ItemEnum {
     pub fn get_info(&self) -> ItemInfo {
         let ident = &self.ident;
         let generics = &self.generics;
+
         if self
-            .variants
-            .iter()
-            .all(|v| matches!(v, EnumVariant::Tuple(_)))
-        {
-            let fields = self
-                .variants
-                .iter()
-                .map(|v| match v {
-                    EnumVariant::Tuple(v) => Field {
-                        ident: &v.ident,
-                        ty: &v.ty,
-                        is_flatten: false,
-                    },
-                    _ => unreachable!(),
-                })
-                .collect::<Vec<_>>();
-            ItemInfo {
-                item_type: ItemType::Enum,
-                ident,
-                generics,
-                fields,
-            }
-        } else if self
             .variants
             .iter()
             .all(|v| matches!(v, EnumVariant::Unit(_)))
@@ -330,6 +308,28 @@ impl ItemEnum {
                 ident,
                 generics,
                 fields: Vec::default(),
+            }
+        } else if self
+            .variants
+            .iter()
+            .all(|v| matches!(v, EnumVariant::Tuple(_)))
+        {
+            ItemInfo {
+                item_type: ItemType::Enum,
+                ident,
+                generics,
+                fields: self
+                    .variants
+                    .iter()
+                    .map(|v| match v {
+                        EnumVariant::Tuple(v) => Field {
+                            ident: &v.ident,
+                            ty: &v.ty,
+                            is_flatten: false,
+                        },
+                        _ => unreachable!(),
+                    })
+                    .collect::<Vec<_>>(),
             }
         } else {
             panic!("all enum variants must be the same type: unit or single-field tuple")

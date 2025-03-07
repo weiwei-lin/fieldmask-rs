@@ -8,8 +8,18 @@ use crate::{DeserializeMaskError, maskable::Maskable};
 /// Allows us to
 ///  * implement traits for it.
 ///  * name the mask of a `Maskable` type more easily.
-#[derive(Clone, Copy, Debug, Deref, DerefMut, PartialEq)]
+#[derive(Deref, DerefMut)]
 pub struct Mask<T: Maskable>(T::Mask);
+
+impl<T> std::fmt::Debug for Mask<T>
+where
+    T: Maskable,
+    T::Mask: std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Mask").field(&self.0).finish()
+    }
+}
 
 impl<T: Maskable> Default for Mask<T> {
     fn default() -> Self {
@@ -18,11 +28,21 @@ impl<T: Maskable> Default for Mask<T> {
 }
 
 impl<T: Maskable> Mask<T> {
+    pub fn full() -> Self {
+        Self(T::full_mask())
+    }
+
     pub fn include_field<'a>(
         &mut self,
         field_path: &[&'a str],
     ) -> Result<(), DeserializeMaskError<'a>> {
         T::make_mask_include_field(&mut self.0, field_path)
+    }
+}
+
+impl<T: Maskable> PartialEq for Mask<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
     }
 }
 

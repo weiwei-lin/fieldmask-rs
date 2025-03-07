@@ -2,7 +2,7 @@
 
 use std::convert::TryFrom;
 
-use fieldmask::{Mask, MaskInput, Maskable};
+use fieldmask::{Mask, MaskInput, Maskable, SelfMaskable};
 
 #[derive(PartialEq, Maskable, ::prost::Message)]
 struct Parent {

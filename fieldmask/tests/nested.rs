@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use fieldmask::{Mask, MaskInput, Maskable};
+use fieldmask::{Mask, MaskInput, Maskable, SelfMaskable};
 
 #[derive(Debug, Default, Maskable, PartialEq)]
 struct Child {

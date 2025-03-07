@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use fieldmask::{Mask, MaskInput, Maskable};
+use fieldmask::{Mask, MaskInput, Maskable, SelfMaskable};
 
 #[derive(Debug, Maskable, PartialEq)]
 struct Flat {
@@ -12,7 +12,10 @@ struct Flat {
 fn flat() {
     let target = Flat { a: 1, b: 2 };
     let mask = vec!["b"];
-    let expected = Flat { a: Default::default(), b: 2 };
+    let expected = Flat {
+        a: Default::default(),
+        b: 2,
+    };
 
     let mask =
         Mask::<Flat>::try_from(MaskInput(mask.into_iter())).expect("unable to deserialize mask");

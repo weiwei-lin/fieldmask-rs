@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use fieldmask::{Mask, MaskInput, Maskable};
+use fieldmask::{Mask, MaskInput, Maskable, SelfMaskable};
 
 #[derive(Debug, PartialEq, Maskable)]
 struct Parent {
@@ -14,7 +14,7 @@ struct Parent {
     #[fieldmask(flatten)]
     flatten_one_of_field: Option<OneOfField>,
 
-    unit_field: UnitField,
+    unit_field: Option<UnitField>,
 }
 
 #[derive(Debug, Default, Maskable, PartialEq)]
@@ -35,9 +35,8 @@ impl Default for OneOfField {
     }
 }
 
-#[derive(Debug, Default, Maskable, PartialEq)]
+#[derive(Debug, Maskable, PartialEq)]
 enum UnitField {
-    #[default]
     One = 1,
     Two = 2,
 }
@@ -59,7 +58,7 @@ fn case_1() {
         one_of_field: Some(OneOfField::VariantOne("variant one".into())),
         flatten_one_of_field: Some(OneOfField::VariantTwo(3)),
 
-        unit_field: UnitField::Two,
+        unit_field: Some(UnitField::Two),
     };
     let mask = vec![
         "primitive",
@@ -84,7 +83,7 @@ fn case_1() {
         one_of_field: Some(OneOfField::VariantOne("variant one".into())),
         flatten_one_of_field: Some(OneOfField::VariantTwo(3)),
 
-        unit_field: UnitField::Two,
+        unit_field: Some(UnitField::Two),
     };
 
     let mask =
