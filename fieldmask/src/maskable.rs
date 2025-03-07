@@ -139,6 +139,8 @@ pub trait OptionMaskable: Maskable + Sized {
     fn option_merge(this: &mut Option<Self>, source: Option<Self>, options: &UpdateOptions);
 }
 
+/// If we want a `SelfMaskable` to be `OptionMaskable`, it must implement `Default`. Otherwise, we
+/// cannot update the message with a partial mask when the source value is `None`.
 impl<T: SelfMaskable + Default> OptionMaskable for T {
     fn option_project(this: Option<Self>, mask: &Self::Mask) -> Option<Self> {
         this.map(|inner| inner.project(mask))
