@@ -26,9 +26,9 @@ struct Child {
 
 #[derive(PartialEq, Maskable, ::prost::Oneof)]
 enum OneOfField {
-    #[prost(string, tag = "3")]
+    #[prost(string, tag = "4")]
     VariantOne(String),
-    #[prost(uint32, tag = "4")]
+    #[prost(uint32, tag = "5")]
     VariantTwo(u32),
 }
 
@@ -38,42 +38,46 @@ impl Default for OneOfField {
     }
 }
 
-#[test]
-fn prost() {
-    let target = Parent {
-        primitive: "string".into(),
-        child_1: Some(Child {
-            field_one: "child_1 field one".into(),
-            field_two: 1,
-        }),
-        child_2: Some(Child {
-            field_one: "child_2 field one".into(),
-            field_two: 2,
-        }),
-        one_of_field: Some(OneOfField::VariantOne("variant one".into())),
-    };
-    let mask = vec![
-        "primitive",
-        "child_1.field_two",
-        "child_2", // if child properties are not specified, all properties are included.
-        "variant_two", // if a field is marked with `flatten`, it's properties are merged with its parents properties.
-    ];
-    let expected = Parent {
-        primitive: "string".into(),
-        child_1: Some(Child {
-            field_one: Default::default(),
-            field_two: 1,
-        }),
-        child_2: Some(Child {
-            field_one: "child_2 field one".into(),
-            field_two: 2,
-        }),
-        one_of_field: None,
-    };
+mod project {
+    use super::*;
 
-    let mask =
-        Mask::<Parent>::try_from(MaskInput(mask.into_iter())).expect("unable to deserialize mask");
-    let actual = target.project(&mask);
+    #[test]
+    fn project() {
+        let target = Parent {
+            primitive: "string".into(),
+            child_1: Some(Child {
+                field_one: "child_1 field one".into(),
+                field_two: 1,
+            }),
+            child_2: Some(Child {
+                field_one: "child_2 field one".into(),
+                field_two: 2,
+            }),
+            one_of_field: Some(OneOfField::VariantOne("variant one".into())),
+        };
+        let mask = vec![
+            "primitive",
+            "child_1.field_two",
+            "child_2", // if child properties are not specified, all properties are included.
+            "variant_two", // if a field is marked with `flatten`, it's properties are merged with its parents properties.
+        ];
+        let expected = Parent {
+            primitive: "string".into(),
+            child_1: Some(Child {
+                field_one: Default::default(),
+                field_two: 1,
+            }),
+            child_2: Some(Child {
+                field_one: "child_2 field one".into(),
+                field_two: 2,
+            }),
+            one_of_field: None,
+        };
 
-    assert_eq!(expected, actual);
+        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask");
+        let actual = target.project(&mask);
+
+        assert_eq!(actual, expected);
+    }
 }

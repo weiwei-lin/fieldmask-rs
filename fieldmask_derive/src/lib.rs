@@ -6,6 +6,17 @@ use utils::{Item, ItemInfo, ItemType};
 
 mod utils;
 
+/// Derive `Maskable` for the type.
+///
+/// The type must be one of the following types:
+/// - A unit-like enum.
+///   - `OptionMaskable` is also derived on this type.
+/// - An enum where each variant has exactly one unnamed associated field. The associated field must
+///   implement `SelfMaskable` and `Default`.
+///   - `OptionMaskable` is also derived on this type.
+/// - A struct with named fields, where the type of each field must implement `SelfMaskable` and
+///   `Default`.
+///   - `SelfMaskable` is also derived on this type.
 // We cannot split the implementation of the `(Self/Option)Maskable` traits into multiple functions
 // because `Self/OptionMaskable`'s implementation depends on `Maskable`'s implementation.
 #[proc_macro_derive(Maskable, attributes(fieldmask))]
@@ -290,12 +301,12 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
 
                 if field.is_flatten {
                     quote! {
-                        self.#ident.update(source.#ident, &mask.#index, options);
+                        self.#ident.update_as_field(source.#ident, &mask.#index, options);
                     }
                 } else {
                     quote! {
                         if let Some(mask) = &mask.#index {
-                            self.#ident.update(source.#ident, mask, options);
+                            self.#ident.update_as_field(source.#ident, mask, options);
                         }
                     }
                 }

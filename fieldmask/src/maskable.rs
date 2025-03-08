@@ -305,6 +305,7 @@ maskable_atomic!(usize);
 
 maskable_atomic!(
     String
+
     fn merge(&mut self, source: Self, _options: &UpdateOptions) {
         if !source.is_empty() {
             *self = source;

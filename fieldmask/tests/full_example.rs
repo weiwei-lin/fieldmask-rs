@@ -29,12 +29,6 @@ enum OneOfField {
     VariantTwo(u32),
 }
 
-impl Default for OneOfField {
-    fn default() -> Self {
-        Self::VariantOne(String::default())
-    }
-}
-
 #[derive(Debug, Maskable, PartialEq)]
 #[allow(dead_code)]
 enum UnitField {
@@ -42,54 +36,58 @@ enum UnitField {
     Two = 2,
 }
 
-#[test]
-fn case_1() {
-    let target = Parent {
-        primitive: "string".into(),
+mod project {
+    use super::*;
 
-        child: Child {
-            field_one: "child field one".into(),
-            field_two: 1,
-        },
-        flatten_child: Child {
-            field_one: "flatten child field one".into(),
-            field_two: 2,
-        },
+    #[test]
+    fn case_1() {
+        let target = Parent {
+            primitive: "string".into(),
 
-        one_of_field: Some(OneOfField::VariantOne("variant one".into())),
-        flatten_one_of_field: Some(OneOfField::VariantTwo(3)),
+            child: Child {
+                field_one: "child field one".into(),
+                field_two: 1,
+            },
+            flatten_child: Child {
+                field_one: "flatten child field one".into(),
+                field_two: 2,
+            },
 
-        unit_field: Some(UnitField::Two),
-    };
-    let mask = vec![
-        "primitive",
-        "child.field_two",
-        "field_one",
-        "one_of_field.variant_one",
-        "variant_two",
-        "unit_field",
-    ];
-    let expected = Parent {
-        primitive: "string".into(),
+            one_of_field: Some(OneOfField::VariantOne("variant one".into())),
+            flatten_one_of_field: Some(OneOfField::VariantTwo(3)),
 
-        child: Child {
-            field_one: Default::default(),
-            field_two: 1,
-        },
-        flatten_child: Child {
-            field_one: "flatten child field one".into(),
-            field_two: Default::default(),
-        },
+            unit_field: Some(UnitField::Two),
+        };
+        let mask = vec![
+            "primitive",
+            "child.field_two",
+            "field_one",
+            "one_of_field.variant_one",
+            "variant_two",
+            "unit_field",
+        ];
+        let expected = Parent {
+            primitive: "string".into(),
 
-        one_of_field: Some(OneOfField::VariantOne("variant one".into())),
-        flatten_one_of_field: Some(OneOfField::VariantTwo(3)),
+            child: Child {
+                field_one: Default::default(),
+                field_two: 1,
+            },
+            flatten_child: Child {
+                field_one: "flatten child field one".into(),
+                field_two: Default::default(),
+            },
 
-        unit_field: Some(UnitField::Two),
-    };
+            one_of_field: Some(OneOfField::VariantOne("variant one".into())),
+            flatten_one_of_field: Some(OneOfField::VariantTwo(3)),
 
-    let mask =
-        Mask::<Parent>::try_from(MaskInput(mask.into_iter())).expect("unable to deserialize mask");
-    let actual = target.project(&mask);
+            unit_field: Some(UnitField::Two),
+        };
 
-    assert_eq!(expected, actual);
+        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask");
+        let actual = target.project(&mask);
+
+        assert_eq!(actual, expected);
+    }
 }
