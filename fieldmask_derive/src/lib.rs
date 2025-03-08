@@ -2,7 +2,7 @@ use inflector::cases::snakecase::to_snake_case;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{Index, parse_macro_input};
-use utils::{Item, ItemInfo, ItemType};
+use utils::{Message, MessageInfo, MessageType};
 
 mod utils;
 
@@ -21,13 +21,13 @@ mod utils;
 // because `Self/OptionMaskable`'s implementation depends on `Maskable`'s implementation.
 #[proc_macro_derive(Maskable, attributes(fieldmask))]
 pub fn derive_maskable(input: TokenStream) -> TokenStream {
-    let input: Item = parse_macro_input!(input);
-    let ItemInfo {
-        item_type,
+    let input: Message = parse_macro_input!(input);
+    let MessageInfo {
+        message_type,
         ident,
         generics,
         fields,
-    } = input.get_info();
+    } = input.get_message_info();
 
     let (impl_generics, ty_generics, where_clauses) = generics.split_for_impl();
     let field_idents = fields.iter().map(|field| &field.ident).collect::<Vec<_>>();
@@ -101,8 +101,8 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
         }
     });
 
-    let additional_impl = match item_type {
-        ItemType::UnitEnum => {
+    let additional_impl = match message_type {
+        MessageType::UnitEnum => {
             // Unit enums have no fields, the field mask is always empty.
             quote! {
                 impl ::fieldmask::OptionMaskable for #ident {
@@ -143,7 +143,7 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
                 }
             }
         }
-        ItemType::Enum => {
+        MessageType::TupleEnum => {
             let project_match_arms = fields.iter().enumerate().map(|(i, field)| {
                 let index = Index::from(i);
                 let ident = field.ident;
@@ -273,7 +273,7 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
                 }
             }
         }
-        ItemType::Struct => {
+        MessageType::Struct => {
             // For each field in the struct, generate a field arm that performs projection on the field.
             let project_arms = fields.iter().enumerate().map(|(i, field)| {
                 let index = Index::from(i);
