@@ -3,21 +3,17 @@
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{
-    Attribute, Expr, Generics, Ident, Meta, NestedMeta, Path, Token, Type, Visibility, braced,
-    parenthesized,
+    Attribute, Expr, Generics, Ident, Meta, Path, Token, Type, Visibility, braced, parenthesized,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     token::{Brace, Paren},
 };
 
-#[cfg(feature = "prost")]
-use syn::Lit;
-
 struct Wrap<T>(pub T);
 
 impl<T: Parse> Parse for Wrap<Punctuated<T, Token![,]>> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(Self(input.parse_terminated(T::parse)?))
+        Ok(Self(input.parse_terminated(T::parse, Token![,])?))
     }
 }
 
@@ -56,7 +52,7 @@ impl Parse for Message {
 
             let content;
             let brace_token = braced!(content in input);
-            let fields = content.parse_terminated(NamedField::parse)?;
+            let fields = content.parse_terminated(NamedField::parse, Token![,])?;
 
             return Ok(Self::Struct(StructMessage {
                 attrs,
@@ -83,7 +79,8 @@ impl Parse for Message {
             let _: Option<Token![,]> = content.parse()?;
             match first_variant {
                 EnumVariant::Unit(first_variant) => {
-                    let mut variants = content.parse_terminated(UnitEnumVariant::parse)?;
+                    let mut variants =
+                        content.parse_terminated(UnitEnumVariant::parse, Token![,])?;
                     variants.insert(0, first_variant);
                     return Ok(Self::UnitEnum(UnitEnumMessage {
                         attrs,
@@ -96,7 +93,8 @@ impl Parse for Message {
                     }));
                 }
                 EnumVariant::Tuple(first_variant) => {
-                    let mut variants = content.parse_terminated(TupleEnumVariant::parse)?;
+                    let mut variants =
+                        content.parse_terminated(TupleEnumVariant::parse, Token![,])?;
                     variants.insert(0, first_variant);
                     return Ok(Self::TupleEnum(TupleEnumMessage {
                         attrs,
@@ -331,20 +329,20 @@ impl Parse for NamedField {
         {
             is_flatten = attrs
                 .iter()
-                .filter(|attr| attr.path.is_ident("prost"))
+                .filter(|attr| attr.path().is_ident("prost"))
                 .map(|attr| attr.parse_args())
                 .collect::<syn::Result<Vec<_>>>()?
                 .iter()
                 .flat_map(|attrs: &Wrap<Punctuated<ProstFieldAttribute, Token![,]>>| &attrs.0)
                 .any(|meta| match meta {
-                    ProstFieldAttribute::OneOf(_) => true,
+                    ProstFieldAttribute::OneOf => true,
                     _ => false,
                 });
         }
 
         let attr_iter = attrs
             .iter()
-            .filter(|attr| attr.path.is_ident("fieldmask"))
+            .filter(|attr| attr.path().is_ident("fieldmask"))
             .map(|attr| attr.parse_args())
             .collect::<syn::Result<Vec<_>>>()?
             .into_iter()
@@ -380,11 +378,9 @@ enum NamedFieldAttribute {
 
 impl Parse for NamedFieldAttribute {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let meta: NestedMeta = input.parse()?;
+        let meta: Meta = input.parse()?;
         match meta {
-            NestedMeta::Meta(Meta::Path(p)) if p.is_ident("flatten") => {
-                Ok(Self::Flatten { repr: p })
-            }
+            Meta::Path(p) if p.is_ident("flatten") => Ok(Self::Flatten { repr: p }),
             _ => Err(syn::Error::new_spanned(meta, "invalid meta")),
         }
     }
@@ -403,18 +399,16 @@ impl ToTokens for NamedFieldAttribute {
 #[non_exhaustive]
 #[cfg(feature = "prost")]
 enum ProstFieldAttribute {
-    OneOf(Lit),
+    OneOf,
     Other,
 }
 
 #[cfg(feature = "prost")]
 impl Parse for ProstFieldAttribute {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let meta: NestedMeta = input.parse()?;
+        let meta: Meta = input.parse()?;
         match meta {
-            NestedMeta::Meta(Meta::NameValue(m)) if m.path.is_ident("oneof") => {
-                Ok(Self::OneOf(m.lit))
-            }
+            Meta::NameValue(m) if m.path.is_ident("oneof") => Ok(Self::OneOf),
             _ => Ok(Self::Other),
         }
     }
