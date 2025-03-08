@@ -84,7 +84,7 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
                                 err: ::std::boxed::Box::new(err),
                             }
                         })?;
-                    Ok(())
+                    ::core::result::Result::Ok(())
                 }
             }
         }
@@ -95,19 +95,36 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
             // Unit enums have no fields, the field mask is always empty.
             quote! {
                 impl ::fieldmask::OptionMaskable for #ident {
-                    fn option_project(this: Option<Self>, _mask: &Self::Mask) -> Option<Self> {
+                    fn option_project(
+                        this: ::core::option::Option<Self>,
+                        _mask: &Self::Mask,
+                    ) -> ::core::option::Option<Self> {
                         this
                     }
 
-                    fn option_update(this: &mut Option<Self>, source: Option<Self>, mask: &Self::Mask, options: &::fieldmask::UpdateOptions) {
+                    fn option_update(
+                        this: &mut ::core::option::Option<Self>,
+                        source: ::core::option::Option<Self>,
+                        mask: &Self::Mask,
+                        options: &::fieldmask::UpdateOptions,
+                    ) {
                         Self::option_update_as_field(this, source, mask, options);
                     }
 
-                    fn option_update_as_field(this: &mut Option<Self>, source: Option<Self>, _mask: &Self::Mask, _options: &::fieldmask::UpdateOptions) {
+                    fn option_update_as_field(
+                        this: &mut ::core::option::Option<Self>,
+                        source: ::core::option::Option<Self>,
+                        _mask: &Self::Mask,
+                        _options: &::fieldmask::UpdateOptions,
+                    ) {
                         *this = source;
                     }
 
-                    fn option_merge(this: &mut Option<Self>, source: Option<Self>, _options: &::fieldmask::UpdateOptions) {
+                    fn option_merge(
+                        this: &mut ::core::option::Option<Self>,
+                        source: ::core::option::Option<Self>,
+                        _options: &::fieldmask::UpdateOptions,
+                    ) {
                         if source.is_some() {
                             *this = source;
                         }
@@ -119,27 +136,38 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
             let project_match_arms = fields.iter().enumerate().map(|(i, field)| {
                 let index = Index::from(i);
                 let ident = field.ident;
+                // If the variant is not selected by the mask, return None.
                 quote! {
-                    Self::#ident(inner) => Self::#ident(
-                        mask.#index
-                            .as_ref()
-                            .map(|mask| inner.project(mask))
-                            .unwrap_or_default()
-                    ),
+                    Self::#ident(inner) => mask.#index
+                        .as_ref()
+                        .map(|mask| Self::#ident(inner.project(mask))),
                 }
             });
 
-            let update_arms = fields.iter().enumerate().map(|(i, field)| {
+            let update_source_arms = fields.iter().enumerate().map(|(i, field)| {
                 let index = Index::from(i);
                 let ident = field.ident;
                 quote! {
                     Self::#ident(source_inner) => {
-                        if let Some(mask) = &mask.#index {
-                            if let Self::#ident(self_inner) = self {
-                                self_inner.update_as_field(source_inner, mask, options);
+                        if let ::core::option::Option::Some(mask) = &mask.#index {
+                            if let ::core::option::Option::Some(Self::#ident(this_inner)) = this {
+                                this_inner.update_as_field(source_inner, mask, options);
                             } else {
-                                *self = Self::#ident(source_inner);
+                                *this = ::core::option::Option::Some(Self::#ident(source_inner.project(mask)));
                             }
+                            return;
+                        }
+                    }
+                }
+            });
+
+            let update_this_arms = fields.iter().enumerate().map(|(i, field)| {
+                let index = Index::from(i);
+                let ident = field.ident;
+                quote! {
+                    Self::#ident(this_inner) => {
+                        if let ::core::option::Option::Some(mask) = &mask.#index {
+                            this_inner.update_as_field(::core::default::Default::default(), mask, options);
                         }
                     }
                 }
@@ -150,53 +178,85 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
 
                 quote! {
                     Self::#ident(source_inner) => {
-                        if let Self::#ident(self_inner) = self {
-                            self_inner.merge(source_inner, options);
+                        if let ::core::option::Option::Some(Self::#ident(this_inner)) = this {
+                            this_inner.merge(source_inner, options);
                         } else {
-                            *self = Self::#ident(source_inner);
+                            *this = ::core::option::Option::Some(Self::#ident(source_inner));
                         }
                     }
                 }
             });
 
             quote! {
-                impl #impl_generics ::fieldmask::SelfMaskable for #ident #ty_generics
+                impl #impl_generics ::fieldmask::OptionMaskable for #ident #ty_generics
                 #where_clauses
                 {
-                    fn project(self, mask: &Self::Mask) -> Self {
-                        match self {
-                            #(#project_match_arms)*
+                    fn option_project(
+                        this: ::core::option::Option<Self>,
+                        mask: &Self::Mask,
+                    ) -> Option<Self> {
+                        match this {
+                            ::core::option::Option::Some(inner) => {
+                                match inner {
+                                    #(#project_match_arms)*
+                                }
+                            }
+                            ::core::option::Option::None => None,
                         }
                     }
 
-                    fn update(&mut self, source: Self, mask: &Self::Mask, options: &::fieldmask::UpdateOptions) {
+                    fn option_update(
+                        this: &mut ::core::option::Option<Self>,
+                        source: ::core::option::Option<Self>,
+                        mask: &Self::Mask,
+                        options: &::fieldmask::UpdateOptions,
+                    ) {
                         if mask == &Self::Mask::default() {
-                            self.update_as_field(source, &Self::full_mask(), options);
+                            Self::option_update_as_field(this, source, &Self::full_mask(), options);
                             return;
                         }
 
-                        self.update_as_field(source, mask, options);
+                        Self::option_update_as_field(this, source, mask, options);
                     }
 
-                    fn update_as_field(&mut self, source: Self, mask: &Self::Mask, options: &::fieldmask::UpdateOptions) {
-                        if mask == &Self::Mask::default() && options.replace_message {
-                            *self = source;
+                    fn option_update_as_field(
+                        this: &mut ::core::option::Option<Self>,
+                        source: ::core::option::Option<Self>,
+                        mask: &Self::Mask,
+                        options: &::fieldmask::UpdateOptions,
+                    ) {
+                        if mask == &Self::Mask::default() {
+                            Self::option_merge(this, source, options);
                             return;
                         }
 
-                        match source {
-                            #(#update_arms)*
+                        if let ::core::option::Option::Some(source_inner) = source {
+                            match source_inner {
+                                #(#update_source_arms)*
+                            }
+                        }
+
+                        if let ::core::option::Option::Some(this_inner) = this {
+                            match this_inner {
+                                #(#update_this_arms)*
+                            }
                         }
                     }
 
-                    fn merge(&mut self, source: Self, options: &::fieldmask::UpdateOptions) {
+                    fn option_merge(
+                        this: &mut ::core::option::Option<Self>,
+                        source: ::core::option::Option<Self>,
+                        options: &::fieldmask::UpdateOptions,
+                    ) {
                         if options.replace_message {
-                            *self = source;
+                            *this = source;
                             return;
                         }
 
-                        match source {
-                            #(#merge_arms)*
+                        if let ::core::option::Option::Some(source_inner) = source {
+                            match source_inner {
+                                #(#merge_arms)*
+                            }
                         }
                     }
                 }
@@ -274,8 +334,8 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
                     }
 
                     fn update_as_field(&mut self, source: Self, mask: &Self::Mask, options: &::fieldmask::UpdateOptions) {
-                        if mask == &Self::Mask::default() && options.replace_message {
-                            *self = source;
+                        if mask == &Self::Mask::default() {
+                            self.merge(source, options);
                             return;
                         }
 

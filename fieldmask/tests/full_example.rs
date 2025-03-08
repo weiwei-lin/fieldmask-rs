@@ -36,6 +36,7 @@ impl Default for OneOfField {
 }
 
 #[derive(Debug, Maskable, PartialEq)]
+#[allow(dead_code)]
 enum UnitField {
     One = 1,
     Two = 2,

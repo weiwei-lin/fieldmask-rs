@@ -47,10 +47,7 @@ fn selected_variant_is_different() {
         c: 1,
     };
     let mask = vec!["one_of.a", "c"];
-    let expected = Parent {
-        one_of: Some(OneOf::B("".into())),
-        c: 1,
-    };
+    let expected = Parent { one_of: None, c: 1 };
 
     let mask =
         Mask::<Parent>::try_from(MaskInput(mask.into_iter())).expect("unable to deserialize mask");

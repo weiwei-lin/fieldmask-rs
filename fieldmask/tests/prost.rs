@@ -68,7 +68,7 @@ fn prost() {
             field_one: "child_2 field one".into(),
             field_two: 2,
         }),
-        one_of_field: Some(OneOfField::VariantOne(Default::default())),
+        one_of_field: None,
     };
 
     let mask =
