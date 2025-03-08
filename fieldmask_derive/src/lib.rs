@@ -111,10 +111,12 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
                 match field_path {
                     [] => ::core::result::Result::Ok(()),
                     #(#make_mask_include_field_match_arms)*
-                    [field, ..] => ::core::result::Result::Err(::fieldmask::DeserializeMaskError::FieldNotFound {
-                        type_name: stringify!(#ident),
-                        field,
-                    }),
+                    [field, ..] => ::core::result::Result::Err(
+                        ::fieldmask::DeserializeMaskError::FieldNotFound {
+                            type_name: stringify!(#ident),
+                            field,
+                        }
+                    ),
                 }
             }
         }
@@ -179,9 +181,9 @@ pub fn derive_option_maskable(input: TokenStream) -> TokenStream {
                 let ident = field.ident;
                 // If the variant is not selected by the mask, return None.
                 quote! {
-                    Self::#ident(inner) => mask.#index
+                    Self::#ident(this) => mask.#index
                         .as_ref()
-                        .map(|mask| Self::#ident(::fieldmask::SelfMaskable::project(inner, mask))),
+                        .map(|mask| Self::#ident(::fieldmask::SelfMaskable::project(this, mask))),
                 }
             });
 
@@ -189,14 +191,14 @@ pub fn derive_option_maskable(input: TokenStream) -> TokenStream {
                 let index = Index::from(i);
                 let ident = field.ident;
                 quote! {
-                    Self::#ident(source_inner) => {
+                    Self::#ident(source) => {
                         if let ::core::option::Option::Some(mask) = &mask.#index {
-                            if let ::core::option::Option::Some(Self::#ident(this_inner)) = this {
-                                ::fieldmask::SelfMaskable::update_as_field(this_inner, source_inner, mask, options);
+                            if let ::core::option::Option::Some(Self::#ident(this)) = this {
+                                ::fieldmask::SelfMaskable::update_as_field(this, source, mask, options);
                             } else {
                                 *this = ::core::option::Option::Some(
                                     Self::#ident(
-                                        ::fieldmask::SelfMaskable::project(source_inner, mask)
+                                        ::fieldmask::SelfMaskable::project(source, mask)
                                     )
                                 );
                             }
@@ -210,9 +212,14 @@ pub fn derive_option_maskable(input: TokenStream) -> TokenStream {
                 let index = Index::from(i);
                 let ident = field.ident;
                 quote! {
-                    Self::#ident(this_inner) => {
+                    Self::#ident(this) => {
                         if let ::core::option::Option::Some(mask) = &mask.#index {
-                            ::fieldmask::SelfMaskable::update_as_field(this_inner, ::core::default::Default::default(), mask, options);
+                            ::fieldmask::SelfMaskable::update_as_field(
+                                this,
+                                ::core::default::Default::default(),
+                                mask,
+                                options,
+                            );
                         }
                     }
                 }
@@ -222,11 +229,11 @@ pub fn derive_option_maskable(input: TokenStream) -> TokenStream {
                 let ident = field.ident;
 
                 quote! {
-                    Self::#ident(source_inner) => {
-                        if let ::core::option::Option::Some(Self::#ident(this_inner)) = this {
-                            ::fieldmask::SelfMaskable::merge(this_inner, source_inner, options);
+                    Self::#ident(source) => {
+                        if let ::core::option::Option::Some(Self::#ident(this)) = this {
+                            ::fieldmask::SelfMaskable::merge(this, source, options);
                         } else {
-                            *this = ::core::option::Option::Some(Self::#ident(source_inner));
+                            *this = ::core::option::Option::Some(Self::#ident(source));
                         }
                     }
                 }
@@ -241,8 +248,8 @@ pub fn derive_option_maskable(input: TokenStream) -> TokenStream {
                         mask: &<Self as ::fieldmask::Maskable>::Mask,
                     ) -> Option<Self> {
                         match this {
-                            ::core::option::Option::Some(inner) => {
-                                match inner {
+                            ::core::option::Option::Some(this) => {
+                                match this {
                                     #(#project_match_arms)*
                                 }
                             }
@@ -261,14 +268,14 @@ pub fn derive_option_maskable(input: TokenStream) -> TokenStream {
                             return;
                         }
 
-                        if let ::core::option::Option::Some(source_inner) = source {
-                            match source_inner {
+                        if let ::core::option::Option::Some(source) = source {
+                            match source {
                                 #(#update_source_arms)*
                             }
                         }
 
-                        if let ::core::option::Option::Some(this_inner) = this {
-                            match this_inner {
+                        if let ::core::option::Option::Some(this) = this {
+                            match this {
                                 #(#update_this_arms)*
                             }
                         }
@@ -284,8 +291,8 @@ pub fn derive_option_maskable(input: TokenStream) -> TokenStream {
                             return;
                         }
 
-                        if let ::core::option::Option::Some(source_inner) = source {
-                            match source_inner {
+                        if let ::core::option::Option::Some(source) = source {
+                            match source {
                                 #(#merge_arms)*
                             }
                         }
@@ -329,7 +336,12 @@ pub fn derive_self_maskable(input: TokenStream) -> TokenStream {
                         self
                     }
 
-                    fn update_as_field(&mut self, source: Self, _mask: &<Self as ::fieldmask::Maskable>::Mask, _options: &::fieldmask::UpdateOptions) {
+                    fn update_as_field(
+                        &mut self,
+                        source: Self,
+                        _mask: &<Self as ::fieldmask::Maskable>::Mask,
+                        _options: &::fieldmask::UpdateOptions,
+                    ) {
                         *self = source;
                     }
 
@@ -377,7 +389,12 @@ pub fn derive_self_maskable(input: TokenStream) -> TokenStream {
 
                 if field.is_flatten {
                     quote! {
-                        ::fieldmask::SelfMaskable::update_as_field(&mut self.#ident, source.#ident, &mask.#index, options);
+                        ::fieldmask::SelfMaskable::update_as_field(
+                            &mut self.#ident,
+                            source.#ident,
+                            &mask.#index,
+                            options,
+                        );
                     }
                 } else {
                     quote! {
@@ -411,7 +428,12 @@ pub fn derive_self_maskable(input: TokenStream) -> TokenStream {
                         }
                     }
 
-                    fn update_as_field(&mut self, source: Self, mask: &<Self as ::fieldmask::Maskable>::Mask, options: &::fieldmask::UpdateOptions) {
+                    fn update_as_field(
+                        &mut self,
+                        source: Self,
+                        mask: &<Self as ::fieldmask::Maskable>::Mask,
+                        options: &::fieldmask::UpdateOptions,
+                    ) {
                         if mask == &<Self as ::fieldmask::Maskable>::Mask::default() {
                             ::fieldmask::SelfMaskable::merge(self, source, options);
                             return;
@@ -429,7 +451,8 @@ pub fn derive_self_maskable(input: TokenStream) -> TokenStream {
                         #(#merge_arms)*
                     }
                 }
-            }.into()
+            }
+            .into()
         }
     }
 }

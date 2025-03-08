@@ -133,7 +133,7 @@ pub trait OptionMaskable: Maskable + Sized {
 /// cannot update the message with a partial mask when the source value is `None`.
 impl<T: SelfMaskable + Default> OptionMaskable for T {
     fn option_project(this: Option<Self>, mask: &Self::Mask) -> Option<Self> {
-        this.map(|inner| inner.project(mask))
+        this.map(|this| this.project(mask))
     }
 
     fn option_update_as_field(
@@ -143,11 +143,11 @@ impl<T: SelfMaskable + Default> OptionMaskable for T {
         options: &UpdateOptions,
     ) {
         match (this.as_mut(), source) {
-            (Some(this_inner), Some(source_inner)) => {
-                this_inner.update_as_field(source_inner, mask, options);
+            (Some(this), Some(source)) => {
+                this.update_as_field(source, mask, options);
             }
-            (Some(this_inner), None) => {
-                this_inner.update_as_field(Self::default(), mask, options);
+            (Some(this), None) => {
+                this.update_as_field(Self::default(), mask, options);
             }
             (None, source) => {
                 *this = source.map(|s| s.project(mask));
@@ -157,8 +157,8 @@ impl<T: SelfMaskable + Default> OptionMaskable for T {
 
     fn option_merge(this: &mut Option<Self>, source: Option<Self>, options: &UpdateOptions) {
         match (this.as_mut(), source) {
-            (Some(this_inner), Some(source_inner)) => {
-                this_inner.merge(source_inner, options);
+            (Some(this), Some(source)) => {
+                this.merge(source, options);
             }
             (_, None) => {}
             (None, source) => {
