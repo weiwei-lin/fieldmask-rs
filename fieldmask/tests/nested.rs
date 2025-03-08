@@ -2,14 +2,14 @@ use std::convert::TryFrom;
 
 use fieldmask::{Mask, MaskInput, Maskable, SelfMaskable};
 
-#[derive(Debug, Default, Maskable, PartialEq)]
+#[derive(Debug, Default, Maskable, PartialEq, SelfMaskable)]
 struct Child {
     a: u32,
     b: u32,
     field_with_default_source: String,
 }
 
-#[derive(Debug, Maskable, PartialEq)]
+#[derive(Debug, Maskable, PartialEq, SelfMaskable)]
 struct Parent {
     child: Child,
     c: u32,

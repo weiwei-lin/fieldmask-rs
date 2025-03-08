@@ -1,8 +1,8 @@
 use std::convert::TryFrom;
 
-use fieldmask::{Mask, MaskInput, Maskable, SelfMaskable};
+use fieldmask::{Mask, MaskInput, Maskable, OptionMaskable, SelfMaskable};
 
-#[derive(Debug, PartialEq, Maskable)]
+#[derive(Debug, Maskable, PartialEq, SelfMaskable)]
 struct Parent {
     primitive: String,
 
@@ -17,19 +17,19 @@ struct Parent {
     unit_field: Option<UnitField>,
 }
 
-#[derive(Debug, Default, Maskable, PartialEq)]
+#[derive(Debug, Default, Maskable, PartialEq, SelfMaskable)]
 struct Child {
     field_one: String,
     field_two: u32,
 }
 
-#[derive(Debug, Maskable, PartialEq)]
+#[derive(Debug, Maskable, OptionMaskable, PartialEq)]
 enum OneOfField {
     VariantOne(String),
     VariantTwo(u32),
 }
 
-#[derive(Debug, Maskable, PartialEq)]
+#[derive(Debug, Maskable, OptionMaskable, PartialEq)]
 #[allow(dead_code)]
 enum UnitField {
     One = 1,

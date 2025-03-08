@@ -10,27 +10,20 @@ mod utils;
 ///
 /// The type must be one of the following types:
 /// - A unit-like enum.
-///   - `OptionMaskable` is also derived on this type.
 /// - An enum where each variant has exactly one unnamed associated field. The associated field must
-///   implement `SelfMaskable` and `Default`.
-///   - `OptionMaskable` is also derived on this type.
-/// - A struct with named fields, where the type of each field must implement `SelfMaskable` and
-///   `Default`.
-///   - `SelfMaskable` is also derived on this type.
-// We cannot split the implementation of the `(Self/Option)Maskable` traits into multiple functions
-// because `Self/OptionMaskable`'s implementation depends on `Maskable`'s implementation.
+///   implement `Maskable`.
+/// - A struct with named fields, where the type of each field must implement `Maskable`.
 #[proc_macro_derive(Maskable, attributes(fieldmask))]
 pub fn derive_maskable(input: TokenStream) -> TokenStream {
     let input: Message = parse_macro_input!(input);
     let MessageInfo {
-        message_type,
         ident,
         generics,
         fields,
+        ..
     } = input.get_message_info();
 
     let (impl_generics, ty_generics, where_clauses) = generics.split_for_impl();
-    let field_idents = fields.iter().map(|field| &field.ident).collect::<Vec<_>>();
 
     let mask_type_arms = fields.iter().map(|field| {
         let field_ty = field.ty;
@@ -52,7 +45,7 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
             }
         } else {
             quote! {
-                Some(::fieldmask::Mask::full()),
+                ::core::option::Option::Some(::fieldmask::Mask::full()),
             }
         }
     });
@@ -101,14 +94,59 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
         }
     });
 
-    let additional_impl = match message_type {
+    quote! {
+        impl #impl_generics ::fieldmask::Maskable for #ident #ty_generics
+        #where_clauses
+        {
+            type Mask = (#(#mask_type_arms)*);
+
+            fn full_mask() -> Self::Mask {
+                (#(#full_mask_arms)*)
+            }
+
+            fn make_mask_include_field<'a>(
+                mask: &mut Self::Mask,
+                field_path: &[&'a ::core::primitive::str],
+            ) -> ::core::result::Result<(), ::fieldmask::DeserializeMaskError<'a>> {
+                match field_path {
+                    [] => ::core::result::Result::Ok(()),
+                    #(#make_mask_include_field_match_arms)*
+                    [field, ..] => ::core::result::Result::Err(::fieldmask::DeserializeMaskError::FieldNotFound {
+                        type_name: stringify!(#ident),
+                        field,
+                    }),
+                }
+            }
+        }
+    }
+    .into()
+}
+
+/// Derive `OptionMaskable` for the type.
+///
+/// The type must be one of the following types:
+/// - A unit-like enum.
+/// - An enum where each variant has exactly one unnamed associated field. The associated field must
+///   implement `SelfMaskable` and `Default`.
+#[proc_macro_derive(OptionMaskable, attributes(fieldmask))]
+pub fn derive_option_maskable(input: TokenStream) -> TokenStream {
+    let input: Message = parse_macro_input!(input);
+    let MessageInfo {
+        message_type,
+        ident,
+        generics,
+        fields,
+    } = input.get_message_info();
+    let (impl_generics, ty_generics, where_clauses) = generics.split_for_impl();
+
+    match message_type {
         MessageType::UnitEnum => {
             // Unit enums have no fields, the field mask is always empty.
             quote! {
                 impl ::fieldmask::OptionMaskable for #ident {
                     fn option_project(
                         this: ::core::option::Option<Self>,
-                        _mask: &Self::Mask,
+                        _mask: &<Self as ::fieldmask::Maskable>::Mask,
                     ) -> ::core::option::Option<Self> {
                         this
                     }
@@ -116,16 +154,16 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
                     fn option_update(
                         this: &mut ::core::option::Option<Self>,
                         source: ::core::option::Option<Self>,
-                        mask: &Self::Mask,
+                        mask: &<Self as ::fieldmask::Maskable>::Mask,
                         options: &::fieldmask::UpdateOptions,
                     ) {
-                        Self::option_update_as_field(this, source, mask, options);
+                        <Self as ::fieldmask::OptionMaskable>::option_update_as_field(this, source, mask, options);
                     }
 
                     fn option_update_as_field(
                         this: &mut ::core::option::Option<Self>,
                         source: ::core::option::Option<Self>,
-                        _mask: &Self::Mask,
+                        _mask: &<Self as ::fieldmask::Maskable>::Mask,
                         _options: &::fieldmask::UpdateOptions,
                     ) {
                         *this = source;
@@ -142,6 +180,7 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
                     }
                 }
             }
+            .into()
         }
         MessageType::TupleEnum => {
             let project_match_arms = fields.iter().enumerate().map(|(i, field)| {
@@ -151,7 +190,7 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
                 quote! {
                     Self::#ident(inner) => mask.#index
                         .as_ref()
-                        .map(|mask| Self::#ident(inner.project(mask))),
+                        .map(|mask| Self::#ident(::fieldmask::SelfMaskable::project(inner, mask))),
                 }
             });
 
@@ -162,9 +201,13 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
                     Self::#ident(source_inner) => {
                         if let ::core::option::Option::Some(mask) = &mask.#index {
                             if let ::core::option::Option::Some(Self::#ident(this_inner)) = this {
-                                this_inner.update_as_field(source_inner, mask, options);
+                                ::fieldmask::SelfMaskable::update_as_field(this_inner, source_inner, mask, options);
                             } else {
-                                *this = ::core::option::Option::Some(Self::#ident(source_inner.project(mask)));
+                                *this = ::core::option::Option::Some(
+                                    Self::#ident(
+                                        ::fieldmask::SelfMaskable::project(source_inner, mask)
+                                    )
+                                );
                             }
                             return;
                         }
@@ -178,7 +221,7 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
                 quote! {
                     Self::#ident(this_inner) => {
                         if let ::core::option::Option::Some(mask) = &mask.#index {
-                            this_inner.update_as_field(::core::default::Default::default(), mask, options);
+                            ::fieldmask::SelfMaskable::update_as_field(this_inner, ::core::default::Default::default(), mask, options);
                         }
                     }
                 }
@@ -190,7 +233,7 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
                 quote! {
                     Self::#ident(source_inner) => {
                         if let ::core::option::Option::Some(Self::#ident(this_inner)) = this {
-                            this_inner.merge(source_inner, options);
+                            ::fieldmask::SelfMaskable::merge(this_inner, source_inner, options);
                         } else {
                             *this = ::core::option::Option::Some(Self::#ident(source_inner));
                         }
@@ -204,7 +247,7 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
                 {
                     fn option_project(
                         this: ::core::option::Option<Self>,
-                        mask: &Self::Mask,
+                        mask: &<Self as ::fieldmask::Maskable>::Mask,
                     ) -> Option<Self> {
                         match this {
                             ::core::option::Option::Some(inner) => {
@@ -219,25 +262,30 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
                     fn option_update(
                         this: &mut ::core::option::Option<Self>,
                         source: ::core::option::Option<Self>,
-                        mask: &Self::Mask,
+                        mask: &<Self as ::fieldmask::Maskable>::Mask,
                         options: &::fieldmask::UpdateOptions,
                     ) {
-                        if mask == &Self::Mask::default() {
-                            Self::option_update_as_field(this, source, &Self::full_mask(), options);
+                        if mask == &<Self as ::fieldmask::Maskable>::Mask::default() {
+                            <Self as ::fieldmask::OptionMaskable>::option_update_as_field(
+                                this,
+                                source,
+                                &<Self as ::fieldmask::Maskable>::full_mask(),
+                                options,
+                            );
                             return;
                         }
 
-                        Self::option_update_as_field(this, source, mask, options);
+                        <Self as ::fieldmask::OptionMaskable>::option_update_as_field(this, source, mask, options);
                     }
 
                     fn option_update_as_field(
                         this: &mut ::core::option::Option<Self>,
                         source: ::core::option::Option<Self>,
-                        mask: &Self::Mask,
+                        mask: &<Self as ::fieldmask::Maskable>::Mask,
                         options: &::fieldmask::UpdateOptions,
                     ) {
-                        if mask == &Self::Mask::default() {
-                            Self::option_merge(this, source, options);
+                        if mask == &<Self as ::fieldmask::Maskable>::Mask::default() {
+                            <Self as ::fieldmask::OptionMaskable>::option_merge(this, source, options);
                             return;
                         }
 
@@ -272,8 +320,68 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
                     }
                 }
             }
+            .into()
         }
         MessageType::Struct => {
+            panic!(
+                "Cannot derive `OptionMaskable` for a struct. If can make it implement `OptionMaskable` by deriving `SelfMaskable` and `Default`."
+            )
+        }
+    }
+}
+
+/// Derive `SelfMaskable` for the type.
+///
+/// The type must be one of the following types:
+/// - A unit-like enum that implements `Default` and `PartialEqual`.
+/// - A struct with named fields, where the type of each field must implement `Default`,
+///   `PartialEqual`, and `SelfMaskable`.
+#[proc_macro_derive(SelfMaskable, attributes(fieldmask))]
+pub fn derive_self_maskable(input: TokenStream) -> TokenStream {
+    let input: Message = parse_macro_input!(input);
+    let MessageInfo {
+        message_type,
+        ident,
+        generics,
+        fields,
+    } = input.get_message_info();
+
+    let (impl_generics, ty_generics, where_clauses) = generics.split_for_impl();
+
+    match message_type {
+        MessageType::UnitEnum => {
+            // Unit enums have no fields, the field mask is always empty.
+            quote! {
+                impl ::fieldmask::SelfMaskable for #ident {
+                    fn project(self, as_derefmask: &<Self as ::fieldmask::Maskable>::Mask) -> Self {
+                        self
+                    }
+
+                    fn update(&mut self, source: Self, mask: &<Self as ::fieldmask::Maskable>::Mask, options: &::fieldmask::UpdateOptions) {
+                        ::fieldmask::SelfMaskable::update_as_field(self, source, mask, options);
+                    }
+
+                    fn update_as_field(&mut self, source: Self, _mask: &<Self as ::fieldmask::Maskable>::Mask, _options: &::fieldmask::UpdateOptions) {
+                        *self = source;
+                    }
+
+                    fn merge(&mut self, source: Self, _options: &::fieldmask::UpdateOptions) {
+                        if source != ::std::default::Default::default() {
+                            *self = source;
+                        }
+                    }
+                }
+            }
+            .into()
+        }
+        MessageType::TupleEnum => {
+            panic!(
+                "Cannot derive `SelfMaskable` for a tuple enum. You can derive `SelfMaskable` instead."
+            );
+        }
+        MessageType::Struct => {
+            let field_idents = fields.iter().map(|field| &field.ident).collect::<Vec<_>>();
+
             // For each field in the struct, generate a field arm that performs projection on the field.
             let project_arms = fields.iter().enumerate().map(|(i, field)| {
                 let index = Index::from(i);
@@ -281,14 +389,14 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
 
                 if field.is_flatten {
                     quote! {
-                        #ident: #ident.project(&mask.#index),
+                        #ident: ::fieldmask::SelfMaskable::project(#ident, &mask.#index),
                     }
                 } else {
                     quote! {
                         #ident: mask
                             .#index
                             .as_deref()
-                            .map(|mask| #ident.project(mask))
+                            .map(|mask| ::fieldmask::SelfMaskable::project(#ident, mask))
                             .unwrap_or_default(),
                     }
                 }
@@ -301,12 +409,12 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
 
                 if field.is_flatten {
                     quote! {
-                        self.#ident.update_as_field(source.#ident, &mask.#index, options);
+                        ::fieldmask::SelfMaskable::update_as_field(&mut self.#ident, source.#ident, &mask.#index, options);
                     }
                 } else {
                     quote! {
                         if let Some(mask) = &mask.#index {
-                            self.#ident.update_as_field(source.#ident, mask, options);
+                            ::fieldmask::SelfMaskable::update_as_field(&mut self.#ident, source.#ident, mask, options);
                         }
                     }
                 }
@@ -316,7 +424,7 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
                 let ident = field.ident;
 
                 quote! {
-                    self.#ident.merge(source.#ident, options);
+                    ::fieldmask::SelfMaskable::merge(&mut self.#ident, source.#ident, options);
                 }
             });
 
@@ -324,8 +432,8 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
                 impl #impl_generics ::fieldmask::SelfMaskable for #ident #ty_generics
                 #where_clauses
                 {
-                    fn project(self, mask: &Self::Mask) -> Self {
-                        if mask == &Self::Mask::default() {
+                    fn project(self, mask: &<Self as ::fieldmask::Maskable>::Mask) -> Self {
+                        if mask == &<Self as ::fieldmask::Maskable>::Mask::default() {
                             return self;
                         }
 
@@ -335,18 +443,18 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
                         }
                     }
 
-                    fn update(&mut self, source: Self, mask: &Self::Mask, options: &::fieldmask::UpdateOptions) {
-                        if mask == &Self::Mask::default() {
-                            self.update_as_field(source, &Self::full_mask(), options);
+                    fn update(&mut self, source: Self, mask: &<Self as ::fieldmask::Maskable>::Mask, options: &::fieldmask::UpdateOptions) {
+                        if mask == &<Self as ::fieldmask::Maskable>::Mask::default() {
+                            ::fieldmask::SelfMaskable::update_as_field(self, source, &<Self as ::fieldmask::Maskable>::full_mask(), options);
                             return;
                         }
 
-                        self.update_as_field(source, mask, options);
+                        ::fieldmask::SelfMaskable::update_as_field(self, source, mask, options);
                     }
 
-                    fn update_as_field(&mut self, source: Self, mask: &Self::Mask, options: &::fieldmask::UpdateOptions) {
-                        if mask == &Self::Mask::default() {
-                            self.merge(source, options);
+                    fn update_as_field(&mut self, source: Self, mask: &<Self as ::fieldmask::Maskable>::Mask, options: &::fieldmask::UpdateOptions) {
+                        if mask == &<Self as ::fieldmask::Maskable>::Mask::default() {
+                            ::fieldmask::SelfMaskable::merge(self, source, options);
                             return;
                         }
 
@@ -362,36 +470,7 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
                         #(#merge_arms)*
                     }
                 }
-            }
+            }.into()
         }
-    };
-
-    quote! {
-        impl #impl_generics ::fieldmask::Maskable for #ident #ty_generics
-        #where_clauses
-        {
-            type Mask = (#(#mask_type_arms)*);
-
-            fn full_mask() -> Self::Mask {
-                (#(#full_mask_arms)*)
-            }
-
-            fn make_mask_include_field<'a>(
-                mask: &mut Self::Mask,
-                field_path: &[&'a ::core::primitive::str],
-            ) -> ::core::result::Result<(), ::fieldmask::DeserializeMaskError<'a>> {
-                match field_path {
-                    [] => ::core::result::Result::Ok(()),
-                    #(#make_mask_include_field_match_arms)*
-                    [field, ..] => ::core::result::Result::Err(::fieldmask::DeserializeMaskError::FieldNotFound {
-                        type_name: stringify!(#ident),
-                        field,
-                    }),
-                }
-            }
-        }
-
-        #additional_impl
     }
-    .into()
 }

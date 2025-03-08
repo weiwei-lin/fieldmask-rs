@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 
 use fieldmask::{Mask, MaskInput, Maskable, SelfMaskable};
 
-#[derive(Debug, Maskable, PartialEq)]
+#[derive(Debug, Maskable, PartialEq, SelfMaskable)]
 struct Flat {
     a: u32,
     b: u32,

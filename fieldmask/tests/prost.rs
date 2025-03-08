@@ -2,9 +2,11 @@
 
 use std::convert::TryFrom;
 
-use fieldmask::{Mask, MaskInput, Maskable, SelfMaskable};
+use prost::{Message, Oneof};
 
-#[derive(PartialEq, Maskable, ::prost::Message)]
+use fieldmask::{Mask, MaskInput, Maskable, OptionMaskable, SelfMaskable};
+
+#[derive(PartialEq, Maskable, Message, SelfMaskable)]
 struct Parent {
     #[prost(string, tag = "1")]
     primitive: String,
@@ -16,7 +18,7 @@ struct Parent {
     one_of_field: Option<OneOfField>,
 }
 
-#[derive(PartialEq, Maskable, ::prost::Message)]
+#[derive(PartialEq, Maskable, Message, SelfMaskable)]
 struct Child {
     #[prost(string, tag = "1")]
     field_one: String,
@@ -24,7 +26,7 @@ struct Child {
     field_two: u32,
 }
 
-#[derive(PartialEq, Maskable, ::prost::Oneof)]
+#[derive(PartialEq, Maskable, Oneof, OptionMaskable)]
 enum OneOfField {
     #[prost(string, tag = "4")]
     VariantOne(String),

@@ -1,15 +1,15 @@
 use std::convert::TryFrom;
 
-use fieldmask::{Mask, MaskInput, Maskable, SelfMaskable};
+use fieldmask::{Mask, MaskInput, Maskable, OptionMaskable, SelfMaskable};
 
-#[derive(Debug, PartialEq, Maskable)]
+#[derive(Debug, Maskable, OptionMaskable, PartialEq)]
 enum OneOf {
     A(String),
     B(String),
     AnotherCase(String),
 }
 
-#[derive(Debug, PartialEq, Maskable)]
+#[derive(Debug, Maskable, PartialEq, SelfMaskable)]
 struct Parent {
     one_of: Option<OneOf>,
     c: u32,
