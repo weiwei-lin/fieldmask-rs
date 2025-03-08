@@ -3,7 +3,7 @@ cargo-features = ["edition2024"]
 [package]
 name = "fieldmask"
 description = "(de)serializing/applying fieldmask"
-version = "0.0.5"
+version = "0.0.6"
 repository = "https://github.com/weiwei-lin/fieldmask-rs"
 authors = ["Weiwei Lin <weiwei.will.lin@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -18,7 +18,7 @@ prost = ["dep:prost", "fieldmask_derive/prost"]
 
 [dependencies]
 derive_more = { version = "2.0.1", features = [ "deref", "deref_mut" ] }
-fieldmask_derive = { version = "0.0.5", path = "../fieldmask_derive" }
+fieldmask_derive = { version = "0.0.6", path = "../fieldmask_derive" }
 prost = { version = "0.13.5", optional = true }
 textwrap = "0.16.2"
 thiserror = "2.0.12"
