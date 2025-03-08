@@ -334,10 +334,7 @@ impl Parse for NamedField {
                 .collect::<syn::Result<Vec<_>>>()?
                 .iter()
                 .flat_map(|attrs: &Wrap<Punctuated<ProstFieldAttribute, Token![,]>>| &attrs.0)
-                .any(|meta| match meta {
-                    ProstFieldAttribute::OneOf => true,
-                    _ => false,
-                });
+                .any(|meta| matches!(meta, ProstFieldAttribute::OneOf));
         }
 
         let attr_iter = attrs

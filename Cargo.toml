@@ -1,9 +1,5 @@
-cargo-features = ["edition2024"]
-
 [workspace]
-
 resolver = "3"
-
 members = [
     "fieldmask",
     "fieldmask_derive",

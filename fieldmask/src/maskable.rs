@@ -248,9 +248,7 @@ macro_rules! maskable_atomic {
         {
             type Mask = ();
 
-            fn full_mask() -> Self::Mask {
-                ()
-            }
+            fn full_mask() -> Self::Mask {}
 
             fn make_mask_include_field<'a>(_mask: &mut Self::Mask, field_path: &[&'a str]) -> Result<(), DeserializeMaskError<'a>> {
                 if field_path.is_empty() {
@@ -322,9 +320,7 @@ maskable_atomic!(
 impl<T> Maskable for Vec<T> {
     type Mask = ();
 
-    fn full_mask() -> Self::Mask {
-        ()
-    }
+    fn full_mask() -> Self::Mask {}
 
     fn make_mask_include_field<'a>(
         _mask: &mut Self::Mask,
@@ -342,7 +338,7 @@ impl<T> Maskable for Vec<T> {
 
 impl<T> SelfMaskable for Vec<T> {
     fn project(self, _mask: &Self::Mask) -> Self {
-        return self;
+        self
     }
 
     fn update_as_field(&mut self, source: Self, _mask: &Self::Mask, options: &UpdateOptions) {

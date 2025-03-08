@@ -100,6 +100,7 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
         {
             type Mask = (#(#mask_type_arms)*);
 
+            #[allow(clippy::unused_unit)]
             fn full_mask() -> Self::Mask {
                 (#(#full_mask_arms)*)
             }

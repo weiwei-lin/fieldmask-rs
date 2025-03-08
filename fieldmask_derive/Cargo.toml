@@ -1,5 +1,3 @@
-cargo-features = ["edition2024"]
-
 [package]
 name = "fieldmask_derive"
 description = "derive macros for the fieldmask crate"
