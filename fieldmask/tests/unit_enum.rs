@@ -27,7 +27,7 @@ mod project {
 
     #[test]
     fn optional_selected() {
-        let target = Parent {
+        let source = Parent {
             primitive: 1,
             optional: Some(UnitEnumNoDefault::Two),
             required: UnitEnumWithDefault::Two,
@@ -39,16 +39,16 @@ mod project {
             required: UnitEnumWithDefault::One,
         };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        let actual = target.project(&mask);
+        let actual = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .project(source);
 
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn optional_not_selected() {
-        let target = Parent {
+        let source = Parent {
             primitive: 1,
             optional: Some(UnitEnumNoDefault::One),
             required: UnitEnumWithDefault::Two,
@@ -60,9 +60,9 @@ mod project {
             required: UnitEnumWithDefault::One,
         };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        let actual = target.project(&mask);
+        let actual = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .project(source);
 
         assert_eq!(actual, expected);
     }

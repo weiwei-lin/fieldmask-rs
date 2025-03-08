@@ -20,7 +20,7 @@ mod project {
 
     #[test]
     fn source_variant_is_the_same() {
-        let target = Parent {
+        let source = Parent {
             one_of: Some(OneOf::B("b".into())),
             c: 1,
         };
@@ -30,32 +30,32 @@ mod project {
             c: 1,
         };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        let actual = target.project(&mask);
+        let actual = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .project(source);
 
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn source_variant_is_different() {
-        let target = Parent {
+        let source = Parent {
             one_of: Some(OneOf::B("b".into())),
             c: 1,
         };
         let mask = vec!["one_of.a", "c"];
         let expected = Parent { one_of: None, c: 1 };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        let actual = target.project(&mask);
+        let actual = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .project(source);
 
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn both_variants_selected() {
-        let target = Parent {
+        let source = Parent {
             one_of: Some(OneOf::B("b".into())),
             c: 1,
         };
@@ -65,16 +65,16 @@ mod project {
             c: 1,
         };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        let actual = target.project(&mask);
+        let actual = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .project(source);
 
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn no_variant_selected() {
-        let target = Parent {
+        let source = Parent {
             one_of: Some(OneOf::B("b".into())),
             c: 1,
         };
@@ -84,16 +84,16 @@ mod project {
             c: 1,
         };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        let actual = target.project(&mask);
+        let actual = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .project(source);
 
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn snake_case() {
-        let target = Parent {
+        let source = Parent {
             one_of: Some(OneOf::AnotherCase("another".into())),
             c: 1,
         };
@@ -103,9 +103,9 @@ mod project {
             c: 1,
         };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        let actual = target.project(&mask);
+        let actual = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .project(source);
 
         assert_eq!(actual, expected);
     }
@@ -131,9 +131,9 @@ mod update {
             c: 1,
         };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        target.update(source, &mask, &options);
+        Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .update(&mut target, source, &options);
 
         assert_eq!(target, expected);
     }
@@ -155,9 +155,9 @@ mod update {
             c: 1,
         };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        target.update(source, &mask, &options);
+        Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .update(&mut target, source, &options);
 
         assert_eq!(target, expected);
     }
@@ -179,9 +179,9 @@ mod update {
             c: 1,
         };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        target.update(source, &mask, &options);
+        Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .update(&mut target, source, &options);
 
         assert_eq!(target, expected);
     }
@@ -203,9 +203,9 @@ mod update {
             c: 1,
         };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        target.update(source, &mask, &options);
+        Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .update(&mut target, source, &options);
 
         assert_eq!(target, expected);
     }
@@ -224,9 +224,9 @@ mod update {
             c: 1,
         };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        target.update(source, &mask, &options);
+        Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .update(&mut target, source, &options);
 
         assert_eq!(target, expected);
     }
@@ -242,9 +242,9 @@ mod update {
         let options = Default::default();
         let expected = Parent { one_of: None, c: 1 };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        target.update(source, &mask, &options);
+        Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .update(&mut target, source, &options);
 
         assert_eq!(target, expected);
     }
@@ -263,9 +263,9 @@ mod update {
             c: 1,
         };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        target.update(source, &mask, &options);
+        Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .update(&mut target, source, &options);
 
         assert_eq!(target, expected);
     }
@@ -284,9 +284,9 @@ mod update {
             c: 1,
         };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        target.update(source, &mask, &options);
+        Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .update(&mut target, source, &options);
 
         assert_eq!(target, expected);
     }

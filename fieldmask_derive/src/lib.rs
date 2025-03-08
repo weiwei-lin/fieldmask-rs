@@ -151,15 +151,6 @@ pub fn derive_option_maskable(input: TokenStream) -> TokenStream {
                         this
                     }
 
-                    fn option_update(
-                        this: &mut ::core::option::Option<Self>,
-                        source: ::core::option::Option<Self>,
-                        mask: &<Self as ::fieldmask::Maskable>::Mask,
-                        options: &::fieldmask::UpdateOptions,
-                    ) {
-                        <Self as ::fieldmask::OptionMaskable>::option_update_as_field(this, source, mask, options);
-                    }
-
                     fn option_update_as_field(
                         this: &mut ::core::option::Option<Self>,
                         source: ::core::option::Option<Self>,
@@ -259,25 +250,6 @@ pub fn derive_option_maskable(input: TokenStream) -> TokenStream {
                         }
                     }
 
-                    fn option_update(
-                        this: &mut ::core::option::Option<Self>,
-                        source: ::core::option::Option<Self>,
-                        mask: &<Self as ::fieldmask::Maskable>::Mask,
-                        options: &::fieldmask::UpdateOptions,
-                    ) {
-                        if mask == &<Self as ::fieldmask::Maskable>::Mask::default() {
-                            <Self as ::fieldmask::OptionMaskable>::option_update_as_field(
-                                this,
-                                source,
-                                &<Self as ::fieldmask::Maskable>::full_mask(),
-                                options,
-                            );
-                            return;
-                        }
-
-                        <Self as ::fieldmask::OptionMaskable>::option_update_as_field(this, source, mask, options);
-                    }
-
                     fn option_update_as_field(
                         this: &mut ::core::option::Option<Self>,
                         source: ::core::option::Option<Self>,
@@ -355,10 +327,6 @@ pub fn derive_self_maskable(input: TokenStream) -> TokenStream {
                 impl ::fieldmask::SelfMaskable for #ident {
                     fn project(self, as_derefmask: &<Self as ::fieldmask::Maskable>::Mask) -> Self {
                         self
-                    }
-
-                    fn update(&mut self, source: Self, mask: &<Self as ::fieldmask::Maskable>::Mask, options: &::fieldmask::UpdateOptions) {
-                        ::fieldmask::SelfMaskable::update_as_field(self, source, mask, options);
                     }
 
                     fn update_as_field(&mut self, source: Self, _mask: &<Self as ::fieldmask::Maskable>::Mask, _options: &::fieldmask::UpdateOptions) {
@@ -441,15 +409,6 @@ pub fn derive_self_maskable(input: TokenStream) -> TokenStream {
                         Self {
                             #(#project_arms)*
                         }
-                    }
-
-                    fn update(&mut self, source: Self, mask: &<Self as ::fieldmask::Maskable>::Mask, options: &::fieldmask::UpdateOptions) {
-                        if mask == &<Self as ::fieldmask::Maskable>::Mask::default() {
-                            ::fieldmask::SelfMaskable::update_as_field(self, source, &<Self as ::fieldmask::Maskable>::full_mask(), options);
-                            return;
-                        }
-
-                        ::fieldmask::SelfMaskable::update_as_field(self, source, mask, options);
                     }
 
                     fn update_as_field(&mut self, source: Self, mask: &<Self as ::fieldmask::Maskable>::Mask, options: &::fieldmask::UpdateOptions) {

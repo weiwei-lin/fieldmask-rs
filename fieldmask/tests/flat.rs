@@ -13,29 +13,29 @@ mod project {
 
     #[test]
     fn regular_mask() {
-        let target = Flat { a: 1, b: 2 };
+        let source = Flat { a: 1, b: 2 };
         let mask = vec!["b"];
         let expected = Flat {
             a: Default::default(),
             b: 2,
         };
 
-        let mask = Mask::<Flat>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        let actual = target.project(&mask);
+        let actual = Mask::<Flat>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .project(source);
 
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn empty_mask() {
-        let target = Flat { a: 1, b: 2 };
+        let source = Flat { a: 1, b: 2 };
         let mask = vec![];
         let expected = Flat { a: 1, b: 2 };
 
-        let mask = Mask::<Flat>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        let actual = target.project(&mask);
+        let actual = Mask::<Flat>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .project(source);
 
         assert_eq!(actual, expected);
     }
@@ -62,13 +62,14 @@ mod update {
     #[test]
     fn regular_mask() {
         let mut target = Flat { a: 1, b: 2 };
-        let mask = vec!["b"];
         let source = Flat { a: 2, b: 3 };
+        let mask = vec!["b"];
+        let options = Default::default();
         let expected = Flat { a: 1, b: 3 };
 
-        let mask = Mask::<Flat>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        target.update(source, &mask, &Default::default());
+        Mask::<Flat>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .update(&mut target, source, &options);
 
         assert_eq!(target, expected);
     }
@@ -78,11 +79,12 @@ mod update {
         let mut target = Flat { a: 1, b: 2 };
         let mask = vec![];
         let source = Flat { a: 2, b: 3 };
+        let options = Default::default();
         let expected = Flat { a: 2, b: 3 };
 
-        let mask = Mask::<Flat>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        target.update(source, &mask, &Default::default());
+        Mask::<Flat>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .update(&mut target, source, &options);
 
         assert_eq!(target, expected);
     }

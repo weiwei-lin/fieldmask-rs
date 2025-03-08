@@ -45,7 +45,7 @@ mod project {
 
     #[test]
     fn project() {
-        let target = Parent {
+        let source = Parent {
             primitive: "string".into(),
             child_1: Some(Child {
                 field_one: "child_1 field one".into(),
@@ -76,9 +76,9 @@ mod project {
             one_of_field: None,
         };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        let actual = target.project(&mask);
+        let actual = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .project(source);
 
         assert_eq!(actual, expected);
     }

@@ -20,7 +20,7 @@ mod project {
 
     #[test]
     fn selected_child_field() {
-        let target = Parent {
+        let source = Parent {
             child: Some(Child {
                 a: 1,
                 b: 2,
@@ -38,16 +38,16 @@ mod project {
             c: 3,
         };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        let actual = target.project(&mask);
+        let actual = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .project(source);
 
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn selected_child_whole() {
-        let target = Parent {
+        let source = Parent {
             child: Some(Child {
                 a: 1,
                 b: 2,
@@ -65,29 +65,29 @@ mod project {
             c: 3,
         };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        let actual = target.project(&mask);
+        let actual = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .project(source);
 
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn child_is_none() {
-        let target = Parent { child: None, c: 3 };
+        let source = Parent { child: None, c: 3 };
         let mask = vec!["child.b", "c"];
         let expected = Parent { child: None, c: 3 };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        let actual = target.project(&mask);
+        let actual = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .project(source);
 
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn child_not_selected() {
-        let target = Parent {
+        let source = Parent {
             child: Some(Child {
                 a: 1,
                 b: 2,
@@ -101,9 +101,9 @@ mod project {
             c: 3,
         };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        let actual = target.project(&mask);
+        let actual = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .project(source);
 
         assert_eq!(actual, expected);
     }
@@ -143,9 +143,9 @@ mod update {
             c: 6,
         };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        target.update(source, &mask, &options);
+        Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .update(&mut target, source, &options);
 
         assert_eq!(target, expected);
     }
@@ -172,9 +172,9 @@ mod update {
             c: 6,
         };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        target.update(source, &mask, &options);
+        Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .update(&mut target, source, &options);
 
         assert_eq!(target, expected);
     }
@@ -208,9 +208,9 @@ mod update {
             c: 6,
         };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        target.update(source, &mask, &options);
+        Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .update(&mut target, source, &options);
 
         assert_eq!(target, expected);
     }
@@ -237,9 +237,9 @@ mod update {
             c: 6,
         };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        target.update(source, &mask, &options);
+        Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .update(&mut target, source, &options);
 
         assert_eq!(target, expected);
     }
@@ -276,9 +276,9 @@ mod update {
             c: 6,
         };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        target.update(source, &mask, &options);
+        Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .update(&mut target, source, &options);
 
         assert_eq!(target, expected);
     }
@@ -312,9 +312,9 @@ mod update {
             c: 6,
         };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        target.update(source, &mask, &options);
+        Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .update(&mut target, source, &options);
 
         assert_eq!(target, expected);
     }

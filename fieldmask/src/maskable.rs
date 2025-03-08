@@ -99,14 +99,8 @@ pub trait SelfMaskable: Maskable {
 
     /// Update the fields of `self` with the fields of `source` according to `mask`.
     ///
-    /// Note that a field of message type with unspecified value is the same as the field with a
-    /// default value. This must be true. Otherwise, we cannot clearly define the behavior of
-    /// the update operation when one of `self` or `source` is `None`.
-    fn update(&mut self, source: Self, mask: &Self::Mask, options: &UpdateOptions);
-
-    /// The same as `update`, but the field is treated as a field of the parent message.
-    ///
-    /// This means an empty `mask` is no longer treated as a full `mask`.
+    /// This message is treated as a field of the parent message, which means an empty `mask` is not
+    /// treated as a full `mask`.
     fn update_as_field(&mut self, source: Self, mask: &Self::Mask, options: &UpdateOptions);
 
     /// Merge the fields of `source` into `self`.
@@ -119,15 +113,11 @@ pub trait OptionMaskable: Maskable + Sized {
     /// Similar to `SelfMaskable::project`, but it takes `Option<Self>` instead of `Self`.
     fn option_project(this: Option<Self>, mask: &Self::Mask) -> Option<Self>;
 
-    /// Similar to `SelfMaskable::update`, but it takes `Option<Self>` instead of `Self`.
-    fn option_update(
-        this: &mut Option<Self>,
-        source: Option<Self>,
-        mask: &Self::Mask,
-        options: &UpdateOptions,
-    );
-
     /// Similar to `SelfMaskable::update_as_field`, but it takes `Option<Self>` instead of `Self`.
+    ///
+    /// Note that a field of message type with unspecified value should be treated the same as the
+    /// field with a default value. This must be true. Otherwise, we cannot clearly define the
+    /// behavior of the update operation when `source` is `None`.
     fn option_update_as_field(
         this: &mut Option<Self>,
         source: Option<Self>,
@@ -144,20 +134,6 @@ pub trait OptionMaskable: Maskable + Sized {
 impl<T: SelfMaskable + Default> OptionMaskable for T {
     fn option_project(this: Option<Self>, mask: &Self::Mask) -> Option<Self> {
         this.map(|inner| inner.project(mask))
-    }
-
-    fn option_update(
-        this: &mut Option<Self>,
-        source: Option<Self>,
-        mask: &Self::Mask,
-        options: &UpdateOptions,
-    ) {
-        if mask == &Self::Mask::default() {
-            Self::option_update_as_field(this, source, &Self::full_mask(), options);
-            return;
-        }
-
-        Self::option_update_as_field(this, source, mask, options);
     }
 
     fn option_update_as_field(
@@ -212,16 +188,41 @@ impl<T: OptionMaskable> SelfMaskable for Option<T> {
         T::option_project(self, mask)
     }
 
-    fn update(&mut self, source: Self, mask: &Self::Mask, options: &UpdateOptions) {
-        T::option_update(self, source, mask, options)
-    }
-
     fn update_as_field(&mut self, source: Self, mask: &Self::Mask, options: &UpdateOptions) {
         T::option_update_as_field(self, source, mask, options)
     }
 
     fn merge(&mut self, source: Self, options: &UpdateOptions) {
         T::option_merge(self, source, options)
+    }
+}
+
+impl<T: Maskable> Maskable for Box<T> {
+    type Mask = T::Mask;
+
+    fn full_mask() -> Self::Mask {
+        T::full_mask()
+    }
+
+    fn make_mask_include_field<'a>(
+        mask: &mut Self::Mask,
+        field_path: &[&'a str],
+    ) -> Result<(), DeserializeMaskError<'a>> {
+        T::make_mask_include_field(mask, field_path)
+    }
+}
+
+impl<T: SelfMaskable> SelfMaskable for Box<T> {
+    fn project(self, mask: &Self::Mask) -> Self {
+        Box::new((*self).project(mask))
+    }
+
+    fn update_as_field(&mut self, source: Self, mask: &Self::Mask, options: &UpdateOptions) {
+        self.as_mut().update_as_field(*source, mask, options);
+    }
+
+    fn merge(&mut self, source: Self, options: &UpdateOptions) {
+        self.as_mut().merge(*source, options);
     }
 }
 
@@ -267,10 +268,6 @@ macro_rules! maskable_atomic {
         {
             fn project(self, _mask: &Self::Mask) -> Self {
                 return self;
-            }
-
-            fn update(&mut self, source: Self, mask: &Self::Mask, options: &UpdateOptions) {
-                self.update_as_field(source, mask, options);
             }
 
             fn update_as_field(&mut self, source: Self, _mask: &Self::Mask, _options: &UpdateOptions) {
@@ -346,10 +343,6 @@ impl<T> Maskable for Vec<T> {
 impl<T> SelfMaskable for Vec<T> {
     fn project(self, _mask: &Self::Mask) -> Self {
         return self;
-    }
-
-    fn update(&mut self, source: Self, mask: &Self::Mask, options: &UpdateOptions) {
-        self.update_as_field(source, mask, options);
     }
 
     fn update_as_field(&mut self, source: Self, _mask: &Self::Mask, options: &UpdateOptions) {

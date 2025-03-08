@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 
 use derive_more::{Deref, DerefMut};
 
-use crate::{DeserializeMaskError, maskable::Maskable};
+use crate::{DeserializeMaskError, Maskable, SelfMaskable, UpdateOptions};
 
 /// A convenient wrapper around a mask value.
 /// Allows us to
@@ -10,6 +10,33 @@ use crate::{DeserializeMaskError, maskable::Maskable};
 ///  * name the mask of a `Maskable` type more easily.
 #[derive(Deref, DerefMut)]
 pub struct Mask<T: Maskable>(T::Mask);
+
+impl<T: Maskable> Mask<T> {
+    pub fn full() -> Self {
+        Self(T::full_mask())
+    }
+
+    pub fn include_field<'a>(
+        &mut self,
+        field_path: &[&'a str],
+    ) -> Result<(), DeserializeMaskError<'a>> {
+        T::make_mask_include_field(&mut self.0, field_path)
+    }
+}
+
+impl<T: SelfMaskable> Mask<T> {
+    pub fn project(&self, source: T) -> T {
+        source.project(self)
+    }
+
+    pub fn update(&self, target: &mut T, source: T, options: &UpdateOptions) {
+        if self == &Self::default() {
+            target.update_as_field(source, &Self::full(), options);
+            return;
+        }
+        target.update_as_field(source, self, options);
+    }
+}
 
 impl<T> std::fmt::Debug for Mask<T>
 where
@@ -24,19 +51,6 @@ where
 impl<T: Maskable> Default for Mask<T> {
     fn default() -> Self {
         Self(T::Mask::default())
-    }
-}
-
-impl<T: Maskable> Mask<T> {
-    pub fn full() -> Self {
-        Self(T::full_mask())
-    }
-
-    pub fn include_field<'a>(
-        &mut self,
-        field_path: &[&'a str],
-    ) -> Result<(), DeserializeMaskError<'a>> {
-        T::make_mask_include_field(&mut self.0, field_path)
     }
 }
 

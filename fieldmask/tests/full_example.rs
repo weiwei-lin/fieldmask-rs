@@ -63,7 +63,7 @@ mod project {
 
     #[test]
     fn case_1() {
-        let target = Parent {
+        let source = Parent {
             primitive: "string".into(),
 
             child: Child {
@@ -109,9 +109,9 @@ mod project {
             unit_enum_with_default: UnitEnumWithDefault::Two,
         };
 
-        let mask = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
-            .expect("unable to deserialize mask");
-        let actual = target.project(&mask);
+        let actual = Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .project(source);
 
         assert_eq!(actual, expected);
     }
