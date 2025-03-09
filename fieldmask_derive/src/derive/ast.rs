@@ -17,24 +17,24 @@ impl<T: Parse> Parse for Wrap<Punctuated<T, Token![,]>> {
     }
 }
 
-/// Represents the declaration of a message type.
-pub enum Message {
-    UnitEnum(UnitEnumMessage),
-    TupleEnum(TupleEnumMessage),
-    Struct(StructMessage),
+/// Represents the input.
+pub enum Input {
+    UnitEnum(ItemUnitEnum),
+    TupleEnum(ItemTupleEnum),
+    Struct(ItemStruct),
 }
 
-impl Message {
+impl Input {
     pub fn get_message_info(&self) -> MessageInfo {
         match &self {
-            Message::UnitEnum(input) => input.get_info(),
-            Message::TupleEnum(input) => input.get_info(),
-            Message::Struct(input) => input.get_info(),
+            Input::UnitEnum(input) => input.get_info(),
+            Input::TupleEnum(input) => input.get_info(),
+            Input::Struct(input) => input.get_info(),
         }
     }
 }
 
-impl Parse for Message {
+impl Parse for Input {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let attrs = input.call(Attribute::parse_outer)?;
 
@@ -54,7 +54,7 @@ impl Parse for Message {
             let brace_token = braced!(content in input);
             let fields = content.parse_terminated(NamedField::parse, Token![,])?;
 
-            return Ok(Self::Struct(StructMessage {
+            return Ok(Self::Struct(ItemStruct {
                 attrs,
                 vis,
                 struct_token,
@@ -82,7 +82,7 @@ impl Parse for Message {
                     let mut variants =
                         content.parse_terminated(UnitEnumVariant::parse, Token![,])?;
                     variants.insert(0, first_variant);
-                    return Ok(Self::UnitEnum(UnitEnumMessage {
+                    return Ok(Self::UnitEnum(ItemUnitEnum {
                         attrs,
                         vis,
                         enum_token,
@@ -96,7 +96,7 @@ impl Parse for Message {
                     let mut variants =
                         content.parse_terminated(TupleEnumVariant::parse, Token![,])?;
                     variants.insert(0, first_variant);
-                    return Ok(Self::TupleEnum(TupleEnumMessage {
+                    return Ok(Self::TupleEnum(ItemTupleEnum {
                         attrs,
                         vis,
                         enum_token,
@@ -113,15 +113,15 @@ impl Parse for Message {
     }
 }
 
-/// The type of a type declaration.
-pub enum MessageType {
+/// The type of the input type declaration.
+pub enum InputType {
     UnitEnum,
     TupleEnum,
     Struct,
 }
 
 /// Represents the declaration of a unit enum.
-pub struct UnitEnumMessage {
+pub struct ItemUnitEnum {
     pub attrs: Vec<Attribute>,
     pub vis: Visibility,
     pub enum_token: Token![enum],
@@ -131,13 +131,13 @@ pub struct UnitEnumMessage {
     pub variants: Punctuated<UnitEnumVariant, Token![,]>,
 }
 
-impl UnitEnumMessage {
+impl ItemUnitEnum {
     pub fn get_info(&self) -> MessageInfo {
         let ident = &self.ident;
         let generics = &self.generics;
 
         MessageInfo {
-            message_type: MessageType::UnitEnum,
+            message_type: InputType::UnitEnum,
             ident,
             generics,
             fields: vec![],
@@ -146,7 +146,7 @@ impl UnitEnumMessage {
 }
 
 /// Represents the declaration of a tuple enum.
-pub struct TupleEnumMessage {
+pub struct ItemTupleEnum {
     pub attrs: Vec<Attribute>,
     pub vis: Visibility,
     pub enum_token: Token![enum],
@@ -156,13 +156,13 @@ pub struct TupleEnumMessage {
     pub variants: Punctuated<TupleEnumVariant, Token![,]>,
 }
 
-impl TupleEnumMessage {
+impl ItemTupleEnum {
     pub fn get_info(&self) -> MessageInfo {
         let ident = &self.ident;
         let generics = &self.generics;
 
         MessageInfo {
-            message_type: MessageType::TupleEnum,
+            message_type: InputType::TupleEnum,
             ident,
             generics,
             fields: self
@@ -179,7 +179,7 @@ impl TupleEnumMessage {
 }
 
 /// Represents the declaration of a struct.
-pub struct StructMessage {
+pub struct ItemStruct {
     pub attrs: Vec<Attribute>,
     pub vis: Visibility,
     pub struct_token: Token![struct],
@@ -189,7 +189,7 @@ pub struct StructMessage {
     pub fields: Punctuated<NamedField, Token![,]>,
 }
 
-impl StructMessage {
+impl ItemStruct {
     pub fn get_info(&self) -> MessageInfo {
         let ident = &self.ident;
         let generics = &self.generics;
@@ -203,7 +203,7 @@ impl StructMessage {
             })
             .collect::<Vec<_>>();
         MessageInfo {
-            message_type: MessageType::Struct,
+            message_type: InputType::Struct,
             ident,
             generics,
             fields,
@@ -420,7 +420,7 @@ pub struct MessageField<'a> {
 
 /// The metadata of a message.
 pub struct MessageInfo<'a> {
-    pub message_type: MessageType,
+    pub message_type: InputType,
     pub ident: &'a Ident,
     pub generics: &'a Generics,
     /// The fields of the message.

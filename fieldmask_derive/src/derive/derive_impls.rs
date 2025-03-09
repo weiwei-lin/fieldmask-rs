@@ -3,11 +3,11 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{Index, parse_macro_input};
 
-use super::ast::{Message, MessageInfo, MessageType};
+use super::ast::{Input, InputType, MessageInfo};
 
 /// The implementation for `derive_maskable`.
 pub fn derive_maskable_impl(input: TokenStream) -> TokenStream {
-    let input: Message = parse_macro_input!(input);
+    let input: Input = parse_macro_input!(input);
     let MessageInfo {
         ident,
         generics,
@@ -119,7 +119,7 @@ pub fn derive_maskable_impl(input: TokenStream) -> TokenStream {
 
 /// The implementation for `derive_option_maskable`.
 pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
-    let input: Message = parse_macro_input!(input);
+    let input: Input = parse_macro_input!(input);
     let MessageInfo {
         message_type,
         ident,
@@ -129,7 +129,7 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
     let (impl_generics, ty_generics, where_clauses) = generics.split_for_impl();
 
     match message_type {
-        MessageType::UnitEnum => {
+        InputType::UnitEnum => {
             // Unit enums have no fields, the field mask is always empty.
             quote! {
                 impl ::fieldmask::OptionMaskable for #ident {
@@ -162,7 +162,7 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
             }
             .into()
         }
-        MessageType::TupleEnum => {
+        InputType::TupleEnum => {
             let project_match_arms = fields.iter().enumerate().map(|(i, field)| {
                 let index = Index::from(i);
                 let ident = field.ident;
@@ -288,7 +288,7 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
             }
             .into()
         }
-        MessageType::Struct => {
+        InputType::Struct => {
             panic!(
                 "Cannot derive `OptionMaskable` for a struct. If can make it implement `OptionMaskable` by deriving `SelfMaskable` and `Default`."
             )
@@ -298,7 +298,7 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
 
 /// The implementation for `derive_self_maskable`.
 pub fn derive_self_maskable_impl(input: TokenStream) -> TokenStream {
-    let input: Message = parse_macro_input!(input);
+    let input: Input = parse_macro_input!(input);
     let MessageInfo {
         message_type,
         ident,
@@ -309,7 +309,7 @@ pub fn derive_self_maskable_impl(input: TokenStream) -> TokenStream {
     let (impl_generics, ty_generics, where_clauses) = generics.split_for_impl();
 
     match message_type {
-        MessageType::UnitEnum => {
+        InputType::UnitEnum => {
             // Unit enums have no fields, the field mask is always empty.
             quote! {
                 impl ::fieldmask::SelfMaskable for #ident {
@@ -335,12 +335,12 @@ pub fn derive_self_maskable_impl(input: TokenStream) -> TokenStream {
             }
             .into()
         }
-        MessageType::TupleEnum => {
+        InputType::TupleEnum => {
             panic!(
                 "Cannot derive `SelfMaskable` for a tuple enum. You can derive `SelfMaskable` instead."
             );
         }
-        MessageType::Struct => {
+        InputType::Struct => {
             let field_idents = fields.iter().map(|field| &field.ident).collect::<Vec<_>>();
 
             // For each field in the struct, generate a field arm that performs projection on the field.
