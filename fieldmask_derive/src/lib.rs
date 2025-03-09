@@ -1,7 +1,7 @@
+mod derive;
+
 use derive::{derive_maskable_impl, derive_option_maskable_impl, derive_self_maskable_impl};
 use proc_macro::TokenStream;
-
-mod derive;
 
 /// Derive `Maskable` for the type.
 ///

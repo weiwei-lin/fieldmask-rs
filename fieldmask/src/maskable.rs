@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use textwrap::indent;
-
 use thiserror::Error;
 
 #[derive(Debug, Error)]
