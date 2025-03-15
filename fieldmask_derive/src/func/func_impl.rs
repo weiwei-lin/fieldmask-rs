@@ -37,7 +37,9 @@ pub fn maskable_atomic_impl(input: TokenStream) -> TokenStream {
                     source: Self,
                     _options: &::fieldmask::UpdateOptions,
                 ) {
-                    *self = source;
+                    if source != ::core::default::Default::default() {
+                        *self = source;
+                    }
                 }
             }
         });

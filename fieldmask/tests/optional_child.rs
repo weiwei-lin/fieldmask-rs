@@ -245,6 +245,35 @@ mod update {
     }
 
     #[test]
+    fn full_child_mask_source_is_none() {
+        let mut target = Parent {
+            child: Some(Child {
+                a: 1,
+                b: Some(2),
+                field_with_default_source: "init".to_string(),
+            }),
+            c: 3,
+        };
+        let source = Parent { child: None, c: 6 };
+        let mask = vec!["child", "c"];
+        let options = Default::default();
+        let expected = Parent {
+            child: Some(Child {
+                a: 1,
+                b: Some(2),
+                field_with_default_source: "init".to_string(),
+            }),
+            c: 6,
+        };
+
+        Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .update(&mut target, source, &options);
+
+        assert_eq!(target, expected);
+    }
+
+    #[test]
     fn full_child_mask_with_replace_message() {
         let mut target = Parent {
             child: Some(Child {
@@ -307,6 +336,35 @@ mod update {
             child: Some(Child {
                 a: 4,
                 b: Some(5),
+                field_with_default_source: Default::default(),
+            }),
+            c: 6,
+        };
+
+        Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .update(&mut target, source, &options);
+
+        assert_eq!(target, expected);
+    }
+
+    #[test]
+    fn explicit_full_child_mask_source_is_none() {
+        let mut target = Parent {
+            child: Some(Child {
+                a: 1,
+                b: Some(2),
+                field_with_default_source: "init".to_string(),
+            }),
+            c: 3,
+        };
+        let source = Parent { child: None, c: 6 };
+        let mask = vec!["child.a", "child.b", "child.field_with_default_source", "c"];
+        let options = Default::default();
+        let expected = Parent {
+            child: Some(Child {
+                a: Default::default(),
+                b: Some(Default::default()),
                 field_with_default_source: Default::default(),
             }),
             c: 6,

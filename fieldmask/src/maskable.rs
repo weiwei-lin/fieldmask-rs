@@ -109,15 +109,16 @@ pub trait SelfMaskable: Maskable {
 
 /// A trait for types that can be projected or updated according to a field mask when wrapped in an
 /// `Option`.
+///
+/// Note that a field of message type with unspecified value should be treated the same as the field
+/// with a default value. This must be true. Otherwise, we cannot clearly define the behavior of the
+/// update operation when `source` is `None`. Also it can lead to confusions on whether the a
+/// `Some(Default::default())` field should be normalized to `None` or not.
 pub trait OptionMaskable: Maskable + Sized {
     /// Similar to `SelfMaskable::project`, but it takes `Option<Self>` instead of `Self`.
     fn option_project(this: Option<Self>, mask: &Self::Mask) -> Option<Self>;
 
     /// Similar to `SelfMaskable::update_as_field`, but it takes `Option<Self>` instead of `Self`.
-    ///
-    /// Note that a field of message type with unspecified value should be treated the same as the
-    /// field with a default value. This must be true. Otherwise, we cannot clearly define the
-    /// behavior of the update operation when `source` is `None`.
     fn option_update_as_field(
         this: &mut Option<Self>,
         source: Option<Self>,
@@ -145,6 +146,41 @@ impl<T: Maskable> Maskable for Option<T> {
         field_path: &[&'a str],
     ) -> Result<(), DeserializeMaskError<'a>> {
         T::make_mask_include_field(mask, field_path)
+    }
+}
+
+impl<T: OptionMaskable> OptionMaskable for Option<T> {
+    fn option_project(this: Option<Self>, mask: &Self::Mask) -> Option<Self> {
+        this.map(|this| T::option_project(this, mask))
+    }
+
+    fn option_update_as_field(
+        this: &mut Option<Self>,
+        source: Option<Self>,
+        mask: &Self::Mask,
+        options: &UpdateOptions,
+    ) {
+        match this {
+            Some(this) => T::option_update_as_field(this, source.flatten(), mask, options),
+            None => {
+                let mut temp = None;
+                T::option_update_as_field(&mut temp, source.flatten(), mask, options);
+                if temp.is_some() {
+                    *this = Some(temp);
+                }
+            }
+        }
+    }
+
+    fn option_merge(this: &mut Option<Self>, source: Option<Self>, options: &UpdateOptions) {
+        match this {
+            Some(this) => T::option_merge(this, source.flatten(), options),
+            None => {
+                if source.is_some() {
+                    *this = source;
+                }
+            }
+        }
     }
 }
 
