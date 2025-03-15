@@ -69,7 +69,7 @@ pub trait Maskable {
     /// [1]: https://protobuf.dev/reference/protobuf/google.protobuf/#field-mask.
     type Mask: Default + PartialEq;
 
-    // Returns a full mask that selects all fields.
+    /// Returns a full mask that selects all fields.
     fn full_mask() -> Self::Mask;
 
     /// Make `mask` include the field specified by `field_path``.
