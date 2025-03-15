@@ -21,7 +21,7 @@ pub fn maskable_atomic_impl(input: TokenStream) -> TokenStream {
                 fn update_as_field(
                     &mut self,
                     source: Self,
-                    _mask: &Self::Mask,
+                    _mask: &<Self as ::fieldmask::Maskable>::Mask,
                     _options: &::fieldmask::UpdateOptions,
                 ) {
                     *self = source;

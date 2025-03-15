@@ -337,7 +337,7 @@ pub fn derive_self_maskable_impl(input: TokenStream) -> TokenStream {
         }
         InputType::TupleEnum => {
             panic!(
-                "Cannot derive `SelfMaskable` for a tuple enum. You can derive `SelfMaskable` instead."
+                "Cannot derive `SelfMaskable` for a tuple enum. You can derive `OptionMaskable` instead."
             );
         }
         InputType::Struct => {
