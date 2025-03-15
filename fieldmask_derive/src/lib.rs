@@ -1,6 +1,8 @@
 mod derive;
+mod func;
 
 use derive::{derive_maskable_impl, derive_option_maskable_impl, derive_self_maskable_impl};
+use func::maskable_atomic_impl;
 use proc_macro::TokenStream;
 
 /// Derive `Maskable` for the type.
@@ -35,4 +37,9 @@ pub fn derive_option_maskable(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(SelfMaskable, attributes(fieldmask))]
 pub fn derive_self_maskable(input: TokenStream) -> TokenStream {
     derive_self_maskable_impl(input)
+}
+
+#[proc_macro]
+pub fn maskable_atomic(input: TokenStream) -> TokenStream {
+    maskable_atomic_impl(input)
 }

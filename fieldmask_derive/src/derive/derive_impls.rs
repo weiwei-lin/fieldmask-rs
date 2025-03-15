@@ -106,7 +106,7 @@ pub fn derive_maskable_impl(input: TokenStream) -> TokenStream {
                     #(#make_mask_include_field_match_arms)*
                     [field, ..] => ::core::result::Result::Err(
                         ::fieldmask::DeserializeMaskError::FieldNotFound {
-                            type_name: stringify!(#ident),
+                            type_name: ::core::stringify!(#ident),
                             field,
                         }
                     ),

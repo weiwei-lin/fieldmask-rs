@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use fieldmask_derive::maskable_atomic;
 use textwrap::indent;
 use thiserror::Error;
 
@@ -225,146 +226,72 @@ impl<T: SelfMaskable> SelfMaskable for Box<T> {
     }
 }
 
-macro_rules! maskable_atomic {
-    ($name:ident$(<$($ty_param:ident),*>)? $(where $($where_clause:tt)+)?) => {
-        maskable_atomic!(
-            $name$(<$($ty_param),*>)? $(where $($where_clause)+)?
-            fn merge(&mut self, source: Self, _options: &UpdateOptions) {
-                if source != Default::default() {
-                    *self = source;
-                }
-            }
-        );
-    };
-    (
-        $name:ident$(<$($ty_param:ident),*>)? $(where $($where_clause:tt)+)?
-        fn merge($($fn_params:tt)*) {
-            $($fn_impl:tt)*
-        }
-    ) => {
-        impl$(<$($ty_param),*>)? Maskable for $name$(<$($ty_param),*>)?
-        $(where $($where_clause)+)?
-        {
-            type Mask = ();
+maskable_atomic!(impl bool {});
+maskable_atomic!(impl char {});
 
-            fn full_mask() -> Self::Mask {}
+maskable_atomic!(impl f32 {});
+maskable_atomic!(impl f64 {});
 
-            fn make_mask_include_field<'a>(_mask: &mut Self::Mask, field_path: &[&'a str]) -> Result<(), DeserializeMaskError<'a>> {
-                if field_path.is_empty() {
-                    return Ok(());
-                }
-                Err(DeserializeMaskError::FieldNotFound {
-                    type_name: stringify!($name),
-                    field: field_path[0],
-                })
-            }
-        }
-
-        impl$(<$($ty_param),*>)? SelfMaskable for $name$(<$($ty_param),*>)?
-        $(where $($where_clause)+)?
-        {
-            fn project(self, _mask: &Self::Mask) -> Self {
-                return self;
-            }
-
-            fn update_as_field(&mut self, source: Self, _mask: &Self::Mask, _options: &UpdateOptions) {
-                *self = source;
-            }
-
-            fn merge($($fn_params)*) {
-                $($fn_impl)*
-            }
-        }
-    };
-}
-
-maskable_atomic!(bool);
-maskable_atomic!(char);
-
-maskable_atomic!(f32);
-maskable_atomic!(f64);
-
-maskable_atomic!(i8);
-maskable_atomic!(u8);
-maskable_atomic!(i16);
-maskable_atomic!(u16);
-maskable_atomic!(i32);
-maskable_atomic!(u32);
-maskable_atomic!(i64);
-maskable_atomic!(u64);
-maskable_atomic!(i128);
-maskable_atomic!(u128);
-maskable_atomic!(isize);
-maskable_atomic!(usize);
+maskable_atomic!(impl i8 {});
+maskable_atomic!(impl u8 {});
+maskable_atomic!(impl i16 {});
+maskable_atomic!(impl u16 {});
+maskable_atomic!(impl i32 {});
+maskable_atomic!(impl u32 {});
+maskable_atomic!(impl i64 {});
+maskable_atomic!(impl u64 {});
+maskable_atomic!(impl i128 {});
+maskable_atomic!(impl u128 {});
+maskable_atomic!(impl isize {});
+maskable_atomic!(impl usize {});
 
 maskable_atomic!(
-    String
-
-    fn merge(&mut self, source: Self, _options: &UpdateOptions) {
-        if !source.is_empty() {
-            *self = source;
-        }
-    }
-);
-maskable_atomic!(
-    HashMap<K, V>
-
-    fn merge(&mut self, source: Self, _options: &UpdateOptions) {
-        if !source.is_empty() {
-            *self = source;
-        }
-    }
-);
-
-impl<T> Maskable for Vec<T> {
-    type Mask = ();
-
-    fn full_mask() -> Self::Mask {}
-
-    fn make_mask_include_field<'a>(
-        _mask: &mut Self::Mask,
-        field_path: &[&'a str],
-    ) -> Result<(), DeserializeMaskError<'a>> {
-        if field_path.is_empty() {
-            return Ok(());
-        }
-        Err(DeserializeMaskError::FieldNotFound {
-            type_name: "Vec",
-            field: field_path[0],
-        })
-    }
-}
-
-impl<T> SelfMaskable for Vec<T> {
-    fn project(self, _mask: &Self::Mask) -> Self {
-        self
-    }
-
-    fn update_as_field(&mut self, source: Self, _mask: &Self::Mask, options: &UpdateOptions) {
-        self.merge(source, options);
-    }
-
-    fn merge(&mut self, source: Self, options: &UpdateOptions) {
-        if options.replace_repeated {
-            *self = source;
-            return;
-        }
-
-        self.extend(source);
-    }
-}
-
-#[cfg(feature = "prost")]
-mod prost_integration {
-    use ::prost::bytes::Bytes;
-
-    use super::*;
-
-    maskable_atomic!(
-        Bytes
+    impl String {
         fn merge(&mut self, source: Self, _options: &UpdateOptions) {
             if !source.is_empty() {
                 *self = source;
+            }
+        }
+    }
+);
+
+maskable_atomic!(
+    impl<K, V> HashMap<K, V> {
+        fn merge(&mut self, source: Self, _options: &UpdateOptions) {
+            if !source.is_empty() {
+                *self = source;
+            }
+        }
+    }
+);
+
+maskable_atomic!(
+    impl<T> Vec<T> {
+        fn update_as_field(&mut self, source: Self, _mask: &Self::Mask, options: &UpdateOptions) {
+            self.merge(source, options);
+        }
+
+        fn merge(&mut self, source: Self, options: &UpdateOptions) {
+            if options.replace_repeated {
+                *self = source;
+                return;
+            }
+
+            self.extend(source);
+        }
+    }
+);
+
+#[cfg(feature = "prost")]
+mod prost_integration {
+    use super::*;
+
+    maskable_atomic!(
+        impl ::prost::bytes::Bytes {
+            fn merge(&mut self, source: Self, _options: &UpdateOptions) {
+                if !source.is_empty() {
+                    *self = source;
+                }
             }
         }
     );
