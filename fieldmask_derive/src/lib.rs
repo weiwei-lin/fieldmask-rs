@@ -43,8 +43,6 @@ pub fn derive_self_maskable(input: TokenStream) -> TokenStream {
 /// Treat the type as an atomic value and Implement `Maskable`, `OptionMaskable`, `SelfMaskable`
 /// for the type.
 ///
-/// This means the value of this type can only be selected as a whole or not selected at all.
-///
 /// You can override the default implementation of `update_as_field` and `merge` if needed.
 ///
 /// ### Example:

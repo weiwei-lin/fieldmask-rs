@@ -57,19 +57,23 @@ pub trait Maskable {
     ///    field mask, where `None` in the tuple means the corresponding field is not selected, and
     ///    `Some(ChildMask)` means the corresponding field is selected with the specified sub-mask.
     ///
-    /// `Mask` must implements the `Default` trait. When constructing a mask, the default mask is
-    /// used as the initial mask that selects no fields.
-    ///
     /// `Mask` must also implements the `PartialEq` trait. We need to compare the mask with the
-    /// default mask to determine whether any of the field is selected.
+    /// empty mask to determine whether any of the field is selected.
     ///
     /// An empty `mask` (i.e. the default value) is the same as a full `mask`. This is consistent
     /// with the [official field mask protobuf specification][1].
     ///
     /// [1]: https://protobuf.dev/reference/protobuf/google.protobuf/#field-mask.
-    type Mask: Default + PartialEq;
+    type Mask: PartialEq;
+
+    /// Returns an empty mask that selects no field.
+    ///
+    /// For atomic types, the empty mask is the same as the full mask.
+    fn empty_mask() -> Self::Mask;
 
     /// Returns a full mask that selects all fields.
+    ///
+    /// For atomic types, the empty mask is the same as the full mask.
     fn full_mask() -> Self::Mask;
 
     /// Make `mask` include the field specified by `field_path``.
@@ -137,6 +141,10 @@ pub trait OptionMaskable: Maskable + Sized {
 impl<T: Maskable> Maskable for Option<T> {
     type Mask = T::Mask;
 
+    fn empty_mask() -> Self::Mask {
+        T::empty_mask()
+    }
+
     fn full_mask() -> Self::Mask {
         T::full_mask()
     }
@@ -200,6 +208,10 @@ impl<T: OptionMaskable> SelfMaskable for Option<T> {
 
 impl<T: Maskable> Maskable for Box<T> {
     type Mask = T::Mask;
+
+    fn empty_mask() -> Self::Mask {
+        T::empty_mask()
+    }
 
     fn full_mask() -> Self::Mask {
         T::full_mask()

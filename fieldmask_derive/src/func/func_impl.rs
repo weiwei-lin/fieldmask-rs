@@ -50,6 +50,8 @@ pub fn maskable_atomic_impl(input: TokenStream) -> TokenStream {
         {
             type Mask = ();
 
+            fn empty_mask() -> Self::Mask {}
+
             fn full_mask() -> Self::Mask {}
 
             fn make_mask_include_field<'a>(

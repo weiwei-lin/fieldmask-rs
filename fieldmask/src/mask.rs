@@ -12,7 +12,16 @@ use crate::{DeserializeMaskError, Maskable, SelfMaskable, UpdateOptions};
 pub struct Mask<T: Maskable>(T::Mask);
 
 impl<T: Maskable> Mask<T> {
+    /// Returns an empty mask that selects no field.
+    ///
+    /// For atomic types, the empty mask is the same as the full mask.
+    pub fn empty() -> Self {
+        Self(T::empty_mask())
+    }
+
     /// Returns a full mask that selects all fields.
+    ///
+    /// For atomic types, the empty mask is the same as the full mask.
     pub fn full() -> Self {
         Self(T::full_mask())
     }
@@ -43,7 +52,7 @@ impl<T: SelfMaskable> Mask<T> {
     ///
     /// An empty field mask is treated as a full mask.
     pub fn update(&self, target: &mut T, source: T, options: &UpdateOptions) {
-        if self == &Self::default() {
+        if self == &Self::empty() {
             target.update_as_field(source, &Self::full(), options);
             return;
         }
@@ -61,12 +70,6 @@ where
     }
 }
 
-impl<T: Maskable> Default for Mask<T> {
-    fn default() -> Self {
-        Self(T::Mask::default())
-    }
-}
-
 impl<T: Maskable> PartialEq for Mask<T> {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
@@ -79,12 +82,11 @@ impl<'a, I, T> TryFrom<MaskInput<I>> for Mask<T>
 where
     I: Iterator<Item = &'a str>,
     T: Maskable,
-    T::Mask: Default,
 {
     type Error = DeserializeMaskError<'a>;
 
     fn try_from(value: MaskInput<I>) -> Result<Self, Self::Error> {
-        let mut mask = Self::default();
+        let mut mask = Self::empty();
         for entry in value.0 {
             mask.include_field(&entry.split('.').collect::<Vec<_>>())?;
         }

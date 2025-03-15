@@ -30,6 +30,18 @@ pub fn derive_maskable_impl(input: TokenStream) -> TokenStream {
         }
     });
 
+    let empty_mask_arms = fields.iter().map(|field| {
+        if field.is_flatten {
+            quote! {
+                ::fieldmask::Mask::empty(),
+            }
+        } else {
+            quote! {
+                ::core::option::Option::None,
+            }
+        }
+    });
+
     let full_mask_arms = fields.iter().map(|field| {
         if field.is_flatten {
             quote! {
@@ -69,10 +81,11 @@ pub fn derive_maskable_impl(input: TokenStream) -> TokenStream {
             // This is useful for oneof fields where each oneof field is represented by a variant
             // in an enum, which is typically in PascalCase.
             let field_name = to_snake_case(&field.ident.to_string());
+            let field_ty = field.ty;
             quote! {
                 [#field_name, tail @ ..] => {
                     mask.#field_index
-                        .get_or_insert_default()
+                        .get_or_insert_with(|| ::fieldmask::Mask::<#field_ty>::empty())
                         .include_field(tail)
                         .map_err(|err| {
                             ::fieldmask::DeserializeMaskError::InvalidField {
@@ -91,6 +104,11 @@ pub fn derive_maskable_impl(input: TokenStream) -> TokenStream {
         #where_clauses
         {
             type Mask = (#(#mask_type_arms)*);
+
+            #[allow(clippy::unused_unit)]
+            fn empty_mask() -> Self::Mask {
+                (#(#empty_mask_arms)*)
+            }
 
             #[allow(clippy::unused_unit)]
             fn full_mask() -> Self::Mask {
@@ -249,7 +267,7 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
                         mask: &<Self as ::fieldmask::Maskable>::Mask,
                         options: &::fieldmask::UpdateOptions,
                     ) {
-                        if mask == &<Self as ::fieldmask::Maskable>::Mask::default() {
+                        if mask == &<Self as ::fieldmask::Maskable>::empty_mask() {
                             <Self as ::fieldmask::OptionMaskable>::option_merge(this, source, options);
                             return;
                         }
@@ -445,7 +463,7 @@ pub fn derive_self_maskable_impl(input: TokenStream) -> TokenStream {
                 #where_clauses
                 {
                     fn project(self, mask: &<Self as ::fieldmask::Maskable>::Mask) -> Self {
-                        if mask == &<Self as ::fieldmask::Maskable>::Mask::default() {
+                        if mask == &<Self as ::fieldmask::Maskable>::empty_mask() {
                             return self;
                         }
 
@@ -461,7 +479,7 @@ pub fn derive_self_maskable_impl(input: TokenStream) -> TokenStream {
                         mask: &<Self as ::fieldmask::Maskable>::Mask,
                         options: &::fieldmask::UpdateOptions,
                     ) {
-                        if mask == &<Self as ::fieldmask::Maskable>::Mask::default() {
+                        if mask == &<Self as ::fieldmask::Maskable>::empty_mask() {
                             ::fieldmask::SelfMaskable::merge(self, source, options);
                             return;
                         }
