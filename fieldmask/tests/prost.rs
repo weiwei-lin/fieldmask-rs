@@ -6,7 +6,7 @@ use prost::{Message, Oneof};
 
 use fieldmask::{Mask, MaskInput, Maskable, OptionMaskable, SelfMaskable};
 
-#[derive(PartialEq, Maskable, Message, SelfMaskable)]
+#[derive(Maskable, Message, PartialEq, SelfMaskable)]
 struct Parent {
     #[prost(string, tag = "1")]
     primitive: String,
@@ -18,7 +18,7 @@ struct Parent {
     one_of_field: Option<OneOfField>,
 }
 
-#[derive(PartialEq, Maskable, Message, SelfMaskable)]
+#[derive(Maskable, Message, OptionMaskable, PartialEq, SelfMaskable)]
 struct Child {
     #[prost(string, tag = "1")]
     field_one: String,
@@ -26,7 +26,7 @@ struct Child {
     field_two: u32,
 }
 
-#[derive(PartialEq, Maskable, Oneof, OptionMaskable)]
+#[derive(Maskable, Oneof, OptionMaskable, PartialEq)]
 enum OneOfField {
     #[prost(string, tag = "4")]
     VariantOne(String),

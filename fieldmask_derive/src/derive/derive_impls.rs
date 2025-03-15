@@ -160,7 +160,6 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
                     }
                 }
             }
-            .into()
         }
         InputType::TupleEnum => {
             let project_match_arms = fields.iter().enumerate().map(|(i, field)| {
@@ -233,14 +232,14 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
                     fn option_project(
                         this: ::core::option::Option<Self>,
                         mask: &<Self as ::fieldmask::Maskable>::Mask,
-                    ) -> Option<Self> {
+                    ) -> ::core::option::Option<Self> {
                         match this {
                             ::core::option::Option::Some(this) => {
                                 match this {
                                     #(#project_match_arms)*
                                 }
                             }
-                            ::core::option::Option::None => None,
+                            ::core::option::Option::None => ::core::option::Option::None,
                         }
                     }
 
@@ -286,14 +285,62 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
                     }
                 }
             }
-            .into()
         }
         InputType::Struct => {
-            panic!(
-                "Cannot derive `OptionMaskable` for a struct. If can make it implement `OptionMaskable` by deriving `SelfMaskable` and `Default`."
-            )
+            quote!{
+                impl #impl_generics ::fieldmask::OptionMaskable for #ident #ty_generics
+                #where_clauses
+                {
+                    fn option_project(
+                        this: ::core::option::Option<Self>,
+                        mask: &<Self as ::fieldmask::Maskable>::Mask,
+                    ) -> ::core::option::Option<Self> {
+                        this.map(|this| ::fieldmask::SelfMaskable::project(this, mask))
+                    }
+
+                    fn option_update_as_field(
+                        this: &mut ::core::option::Option<Self>,
+                        source: ::core::option::Option<Self>,
+                        mask: &<Self as ::fieldmask::Maskable>::Mask,
+                        options: &::fieldmask::UpdateOptions,
+                    ) {
+                        match (this.as_mut(), source) {
+                            (::core::option::Option::Some(this), ::core::option::Option::Some(source)) => {
+                                ::fieldmask::SelfMaskable::update_as_field(this, source, mask, options);
+                            }
+                            (::core::option::Option::Some(this), ::core::option::Option::None) => {
+                                ::fieldmask::SelfMaskable::update_as_field(
+                                    this,
+                                    ::core::default::Default::default(),
+                                    mask,
+                                    options,
+                                );
+                            }
+                            (::core::option::Option::None, source) => {
+                                *this = source.map(|s| ::fieldmask::SelfMaskable::project(s, mask));
+                            }
+                        }
+                    }
+
+                    fn option_merge(
+                        this: &mut ::core::option::Option<Self>,
+                        source: ::core::option::Option<Self>,
+                        options: &::fieldmask::UpdateOptions,
+                    ) {
+                        match (this.as_mut(), source) {
+                            (::core::option::Option::Some(this), ::core::option::Option::Some(source)) => {
+                                ::fieldmask::SelfMaskable::merge(this, source, options);
+                            }
+                            (_, ::core::option::Option::None) => {}
+                            (::core::option::Option::None, source) => {
+                                *this = source;
+                            }
+                        }
+                    }
+                }
+            }
         }
-    }
+    }.into()
 }
 
 /// The implementation for `derive_self_maskable`.
@@ -327,13 +374,12 @@ pub fn derive_self_maskable_impl(input: TokenStream) -> TokenStream {
                     }
 
                     fn merge(&mut self, source: Self, _options: &::fieldmask::UpdateOptions) {
-                        if source != ::std::default::Default::default() {
+                        if source != ::core::default::Default::default() {
                             *self = source;
                         }
                     }
                 }
             }
-            .into()
         }
         InputType::TupleEnum => {
             panic!(
@@ -433,7 +479,6 @@ pub fn derive_self_maskable_impl(input: TokenStream) -> TokenStream {
                     }
                 }
             }
-            .into()
         }
-    }
+    }.into()
 }

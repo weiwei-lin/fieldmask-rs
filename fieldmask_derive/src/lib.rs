@@ -23,6 +23,7 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
 /// - A unit-like enum.
 /// - An enum where each variant has exactly one unnamed associated field. The associated field must
 ///   implement `SelfMaskable` and `Default`.
+/// - A struct that implements `Default` and `SelfMaskable`.
 #[proc_macro_derive(OptionMaskable, attributes(fieldmask))]
 pub fn derive_option_maskable(input: TokenStream) -> TokenStream {
     derive_option_maskable_impl(input)

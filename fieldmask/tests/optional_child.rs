@@ -1,11 +1,11 @@
 use std::convert::TryFrom;
 
-use fieldmask::{Mask, MaskInput, Maskable, SelfMaskable};
+use fieldmask::{Mask, MaskInput, Maskable, OptionMaskable, SelfMaskable};
 
-#[derive(Debug, Default, Maskable, PartialEq, SelfMaskable)]
+#[derive(Debug, Default, Maskable, OptionMaskable, PartialEq, SelfMaskable)]
 struct Child {
     a: u32,
-    b: u32,
+    b: Option<u32>,
     field_with_default_source: String,
 }
 
@@ -23,7 +23,7 @@ mod project {
         let source = Parent {
             child: Some(Child {
                 a: 1,
-                b: 2,
+                b: Some(2),
                 field_with_default_source: "init".into(),
             }),
             c: 3,
@@ -32,7 +32,7 @@ mod project {
         let expected = Parent {
             child: Some(Child {
                 a: Default::default(),
-                b: 2,
+                b: Some(2),
                 field_with_default_source: Default::default(),
             }),
             c: 3,
@@ -50,7 +50,7 @@ mod project {
         let source = Parent {
             child: Some(Child {
                 a: 1,
-                b: 2,
+                b: Some(2),
                 field_with_default_source: "init".into(),
             }),
             c: 3,
@@ -59,7 +59,7 @@ mod project {
         let expected = Parent {
             child: Some(Child {
                 a: 1,
-                b: 2,
+                b: Some(2),
                 field_with_default_source: "init".into(),
             }),
             c: 3,
@@ -90,7 +90,7 @@ mod project {
         let source = Parent {
             child: Some(Child {
                 a: 1,
-                b: 2,
+                b: Some(2),
                 field_with_default_source: "init".into(),
             }),
             c: 3,
@@ -119,7 +119,7 @@ mod update {
         let mut target = Parent {
             child: Some(Child {
                 a: 1,
-                b: 2,
+                b: Some(2),
                 field_with_default_source: "init".to_string(),
             }),
             c: 3,
@@ -127,7 +127,7 @@ mod update {
         let source = Parent {
             child: Some(Child {
                 a: 4,
-                b: 5,
+                b: Some(5),
                 field_with_default_source: Default::default(),
             }),
             c: 6,
@@ -137,7 +137,7 @@ mod update {
         let expected = Parent {
             child: Some(Child {
                 a: 1,
-                b: 5,
+                b: Some(5),
                 field_with_default_source: "init".to_string(),
             }),
             c: 6,
@@ -156,7 +156,7 @@ mod update {
         let source = Parent {
             child: Some(Child {
                 a: 4,
-                b: 5,
+                b: Some(5),
                 field_with_default_source: Default::default(),
             }),
             c: 6,
@@ -166,7 +166,7 @@ mod update {
         let expected = Parent {
             child: Some(Child {
                 a: Default::default(),
-                b: 5,
+                b: Some(5),
                 field_with_default_source: Default::default(),
             }),
             c: 6,
@@ -184,7 +184,7 @@ mod update {
         let mut target = Parent {
             child: Some(Child {
                 a: 1,
-                b: 2,
+                b: Some(2),
                 field_with_default_source: "init".to_string(),
             }),
             c: 3,
@@ -192,7 +192,7 @@ mod update {
         let source = Parent {
             child: Some(Child {
                 a: 4,
-                b: 5,
+                b: Default::default(),
                 field_with_default_source: Default::default(),
             }),
             c: 6,
@@ -202,7 +202,7 @@ mod update {
         let expected = Parent {
             child: Some(Child {
                 a: 4,
-                b: 5,
+                b: Some(2),
                 field_with_default_source: "init".to_string(),
             }),
             c: 6,
@@ -221,7 +221,7 @@ mod update {
         let source = Parent {
             child: Some(Child {
                 a: 4,
-                b: 5,
+                b: Some(5),
                 field_with_default_source: Default::default(),
             }),
             c: 6,
@@ -231,7 +231,7 @@ mod update {
         let expected = Parent {
             child: Some(Child {
                 a: 4,
-                b: 5,
+                b: Some(5),
                 field_with_default_source: Default::default(),
             }),
             c: 6,
@@ -249,7 +249,7 @@ mod update {
         let mut target = Parent {
             child: Some(Child {
                 a: 1,
-                b: 2,
+                b: Some(2),
                 field_with_default_source: "init".to_string(),
             }),
             c: 3,
@@ -257,7 +257,7 @@ mod update {
         let source = Parent {
             child: Some(Child {
                 a: 4,
-                b: 5,
+                b: Default::default(),
                 field_with_default_source: Default::default(),
             }),
             c: 6,
@@ -270,7 +270,7 @@ mod update {
         let expected = Parent {
             child: Some(Child {
                 a: 4,
-                b: 5,
+                b: Default::default(),
                 field_with_default_source: Default::default(),
             }),
             c: 6,
@@ -288,7 +288,7 @@ mod update {
         let mut target = Parent {
             child: Some(Child {
                 a: 1,
-                b: 2,
+                b: Some(2),
                 field_with_default_source: "init".to_string(),
             }),
             c: 3,
@@ -296,7 +296,7 @@ mod update {
         let source = Parent {
             child: Some(Child {
                 a: 4,
-                b: 5,
+                b: Some(5),
                 field_with_default_source: Default::default(),
             }),
             c: 6,
@@ -306,7 +306,7 @@ mod update {
         let expected = Parent {
             child: Some(Child {
                 a: 4,
-                b: 5,
+                b: Some(5),
                 field_with_default_source: Default::default(),
             }),
             c: 6,

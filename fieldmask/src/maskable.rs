@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, mem};
 
 use fieldmask_derive::maskable_atomic;
 use textwrap::indent;
@@ -129,44 +129,9 @@ pub trait OptionMaskable: Maskable + Sized {
     fn option_merge(this: &mut Option<Self>, source: Option<Self>, options: &UpdateOptions);
 }
 
-/// If we want a `SelfMaskable` to be `OptionMaskable`, it must implement `Default`. Otherwise, we
-/// cannot update the message with a partial mask when the source value is `None`.
-impl<T: SelfMaskable + Default> OptionMaskable for T {
-    fn option_project(this: Option<Self>, mask: &Self::Mask) -> Option<Self> {
-        this.map(|this| this.project(mask))
-    }
-
-    fn option_update_as_field(
-        this: &mut Option<Self>,
-        source: Option<Self>,
-        mask: &Self::Mask,
-        options: &UpdateOptions,
-    ) {
-        match (this.as_mut(), source) {
-            (Some(this), Some(source)) => {
-                this.update_as_field(source, mask, options);
-            }
-            (Some(this), None) => {
-                this.update_as_field(Self::default(), mask, options);
-            }
-            (None, source) => {
-                *this = source.map(|s| s.project(mask));
-            }
-        }
-    }
-
-    fn option_merge(this: &mut Option<Self>, source: Option<Self>, options: &UpdateOptions) {
-        match (this.as_mut(), source) {
-            (Some(this), Some(source)) => {
-                this.merge(source, options);
-            }
-            (_, None) => {}
-            (None, source) => {
-                *this = source;
-            }
-        }
-    }
-}
+// Do not implement this. Otherwise we will not be able to implement `OptionMaskable` for any other
+//  foreign types (e.g. `Box<T>`) without specialization.
+// impl<T: SelfMaskable + Default> OptionMaskable for T {}
 
 impl<T: Maskable> Maskable for Option<T> {
     type Mask = T::Mask;
@@ -223,6 +188,36 @@ impl<T: SelfMaskable> SelfMaskable for Box<T> {
 
     fn merge(&mut self, source: Self, options: &UpdateOptions) {
         self.as_mut().merge(*source, options);
+    }
+}
+
+impl<T: OptionMaskable> OptionMaskable for Box<T> {
+    fn option_project(this: Option<Self>, mask: &Self::Mask) -> Option<Self> {
+        match this {
+            Some(this) => T::option_project(Some(*this), mask).map(Box::new),
+            None => None,
+        }
+    }
+
+    fn option_update_as_field(
+        this: &mut Option<Self>,
+        source: Option<Self>,
+        mask: &Self::Mask,
+        options: &UpdateOptions,
+    ) {
+        let mut temp = None;
+        mem::swap(this, &mut temp);
+        let mut temp = temp.map(|temp| *temp);
+        temp.update_as_field(source.map(|source| *source), mask, options);
+        *this = temp.map(Box::new);
+    }
+
+    fn option_merge(this: &mut Option<Self>, source: Option<Self>, options: &UpdateOptions) {
+        let mut temp = None;
+        mem::swap(this, &mut temp);
+        let mut temp = temp.map(|temp| *temp);
+        temp.merge(source.map(|source| *source), options);
+        *this = temp.map(Box::new);
     }
 }
 
