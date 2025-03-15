@@ -5,7 +5,7 @@ extern crate self as fieldmask;
 mod mask;
 mod maskable;
 
-pub use fieldmask_derive::{Maskable, OptionMaskable, SelfMaskable};
+pub use fieldmask_derive::{Maskable, OptionMaskable, SelfMaskable, maskable_atomic};
 
 pub use mask::{Mask, MaskInput};
 pub use maskable::{DeserializeMaskError, Maskable, OptionMaskable, SelfMaskable, UpdateOptions};
