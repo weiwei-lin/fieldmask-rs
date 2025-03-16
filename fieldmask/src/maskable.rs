@@ -118,6 +118,16 @@ pub trait SelfMaskable: Maskable {
 /// with a default value. This must be true. Otherwise, we cannot clearly define the behavior of the
 /// update operation when `source` is `None`. Also it can lead to confusions on whether the a
 /// `Some(Default::default())` field should be normalized to `None` or not.
+///
+/// It's difficult to directly force the implementors to always normalize `Some(Default::default())`
+/// to `None` when updating. Consider the following examples:
+///  - Target is a message. It has many fields but only one of them, `a`, has a non-default value.
+///    Source is `None`. Mask only selects `a`. Should the target be normalized to `None` after the
+///    update? If yes, we need to visit all fields to check if they are default values, even though
+///    the mask does not select them. If no, the end result will be an unnormalized message.
+///  - Target is a message. All of its fields are default values. Source is `None`. Mask selects
+///    nothing. Should the target be normalized to `None` after the update? If yes, we are updating
+///    fields that are not selected by the mask at all.
 pub trait OptionMaskable: Maskable + Sized {
     /// Similar to `SelfMaskable::project`, but it takes `Option<Self>` instead of `Self`.
     fn option_project(this: Option<Self>, mask: &Self::Mask) -> Option<Self>;
