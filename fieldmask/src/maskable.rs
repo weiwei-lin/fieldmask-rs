@@ -59,11 +59,6 @@ pub trait Maskable {
     ///
     /// `Mask` must also implements the `PartialEq` trait. We need to compare the mask with the
     /// empty mask to determine whether any of the field is selected.
-    ///
-    /// An empty `mask` (i.e. the default value) is the same as a full `mask`. This is consistent
-    /// with the [official field mask protobuf specification][1].
-    ///
-    /// [1]: https://protobuf.dev/reference/protobuf/google.protobuf/#field-mask.
     type Mask: PartialEq;
 
     /// Returns an empty mask that selects no field.
@@ -99,6 +94,11 @@ pub trait Maskable {
 /// A trait for types that can be projected or updated according to a field mask.
 pub trait SelfMaskable: Maskable {
     /// Project the fields of `self` according to `mask`.
+    ///
+    /// An empty `mask` is the same as a full `mask`. This is consistent with [the official field
+    /// mask protobuf specification][1].
+    ///
+    /// [1]: https://protobuf.dev/reference/protobuf/google.protobuf/#field-mask.
     fn project(self, mask: &Self::Mask) -> Self;
 
     /// Update the fields of `self` with the fields of `source` according to `mask`.
