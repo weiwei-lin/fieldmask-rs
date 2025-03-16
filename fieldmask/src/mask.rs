@@ -44,8 +44,9 @@ impl<T: SelfMaskable> Mask<T> {
     /// Project the fields of `source` according to the field mask.
     ///
     /// An empty field mask is treated as a full mask.
-    pub fn project(&self, source: T) -> T {
-        source.project(self)
+    pub fn project(&self, mut source: T) -> T {
+        source.project(self);
+        source
     }
 
     /// Update the fields of `target` with the fields of `source` according to the field mask.

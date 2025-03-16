@@ -152,11 +152,9 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
             quote! {
                 impl ::fieldmask::OptionMaskable for #ident {
                     fn option_project(
-                        this: ::core::option::Option<Self>,
+                        _this: &mut ::core::option::Option<Self>,
                         _mask: &<Self as ::fieldmask::Maskable>::Mask,
-                    ) -> ::core::option::Option<Self> {
-                        this
-                    }
+                    ) {}
 
                     fn option_update_as_field(
                         this: &mut ::core::option::Option<Self>,
@@ -185,9 +183,12 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
                 let ident = field.ident;
                 // If the variant is not selected by the mask, return None.
                 quote! {
-                    Self::#ident(this) => mask.#index
-                        .as_ref()
-                        .map(|mask| Self::#ident(::fieldmask::SelfMaskable::project(this, mask))),
+                    Self::#ident(this) => {
+                        if let ::core::option::Option::Some(mask) = &mask.#index {
+                            ::fieldmask::SelfMaskable::project(this, mask);
+                            return;
+                        }
+                    }
                 }
             });
 
@@ -195,16 +196,13 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
                 let index = Index::from(i);
                 let ident = field.ident;
                 quote! {
-                    Self::#ident(source) => {
+                    Self::#ident(mut source) => {
                         if let ::core::option::Option::Some(mask) = &mask.#index {
                             if let ::core::option::Option::Some(Self::#ident(this)) = this {
                                 ::fieldmask::SelfMaskable::update_as_field(this, source, mask, options);
                             } else {
-                                *this = ::core::option::Option::Some(
-                                    Self::#ident(
-                                        ::fieldmask::SelfMaskable::project(source, mask)
-                                    )
-                                );
+                                ::fieldmask::SelfMaskable::project(&mut source, mask);
+                                *this = ::core::option::Option::Some(Self::#ident(source));
                             }
                             return;
                         }
@@ -248,17 +246,15 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
                 #where_clauses
                 {
                     fn option_project(
-                        this: ::core::option::Option<Self>,
+                        this: &mut ::core::option::Option<Self>,
                         mask: &<Self as ::fieldmask::Maskable>::Mask,
-                    ) -> ::core::option::Option<Self> {
-                        match this {
-                            ::core::option::Option::Some(this) => {
-                                match this {
-                                    #(#project_match_arms)*
-                                }
+                    ) {
+                        if let ::core::option::Option::Some(this) = this {
+                            match this {
+                                #(#project_match_arms)*
                             }
-                            ::core::option::Option::None => ::core::option::Option::None,
                         }
+                        *this = ::core::option::Option::None;
                     }
 
                     fn option_update_as_field(
@@ -310,10 +306,12 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
                 #where_clauses
                 {
                     fn option_project(
-                        this: ::core::option::Option<Self>,
+                        this: &mut ::core::option::Option<Self>,
                         mask: &<Self as ::fieldmask::Maskable>::Mask,
-                    ) -> ::core::option::Option<Self> {
-                        this.map(|this| ::fieldmask::SelfMaskable::project(this, mask))
+                    ) {
+                        if let ::core::option::Option::Some(this) = this {
+                            ::fieldmask::SelfMaskable::project(this, mask)
+                        }
                     }
 
                     fn option_update_as_field(
@@ -334,9 +332,11 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
                                     options,
                                 );
                             }
-                            (::core::option::Option::None, source) => {
-                                *this = source.map(|s| ::fieldmask::SelfMaskable::project(s, mask));
+                            (::core::option::Option::None, ::core::option::Option::Some(mut source)) => {
+                                ::fieldmask::SelfMaskable::project(&mut source, mask);
+                                *this = Some(source);
                             }
+                            (::core::option::Option::None, ::core::option::Option::None) => {}
                         }
                     }
 
@@ -378,9 +378,7 @@ pub fn derive_self_maskable_impl(input: TokenStream) -> TokenStream {
             // Unit enums have no fields, the field mask is always empty.
             quote! {
                 impl ::fieldmask::SelfMaskable for #ident {
-                    fn project(self, as_derefmask: &<Self as ::fieldmask::Maskable>::Mask) -> Self {
-                        self
-                    }
+                    fn project(&mut self, _mask: &<Self as ::fieldmask::Maskable>::Mask) {}
 
                     fn update_as_field(
                         &mut self,
@@ -405,8 +403,6 @@ pub fn derive_self_maskable_impl(input: TokenStream) -> TokenStream {
             );
         }
         InputType::Struct => {
-            let field_idents = fields.iter().map(|field| &field.ident).collect::<Vec<_>>();
-
             // For each field in the struct, generate a field arm that performs projection on the field.
             let project_arms = fields.iter().enumerate().map(|(i, field)| {
                 let index = Index::from(i);
@@ -414,15 +410,18 @@ pub fn derive_self_maskable_impl(input: TokenStream) -> TokenStream {
 
                 if field.is_flatten {
                     quote! {
-                        #ident: ::fieldmask::SelfMaskable::project(#ident, &mask.#index),
+                        ::fieldmask::SelfMaskable::project(&mut self.#ident, &mask.#index);
                     }
                 } else {
                     quote! {
-                        #ident: mask
-                            .#index
-                            .as_deref()
-                            .map(|mask| ::fieldmask::SelfMaskable::project(#ident, mask))
-                            .unwrap_or_default(),
+                        match mask.#index.as_deref() {
+                            ::core::option::Option::Some(mask) => {
+                                ::fieldmask::SelfMaskable::project(&mut self.#ident, mask);
+                            }
+                            ::core::option::Option::None => {
+                                self.#ident = ::core::default::Default::default();
+                            }
+                        }
                     }
                 }
             });
@@ -462,15 +461,12 @@ pub fn derive_self_maskable_impl(input: TokenStream) -> TokenStream {
                 impl #impl_generics ::fieldmask::SelfMaskable for #ident #ty_generics
                 #where_clauses
                 {
-                    fn project(self, mask: &<Self as ::fieldmask::Maskable>::Mask) -> Self {
+                    fn project(&mut self, mask: &<Self as ::fieldmask::Maskable>::Mask) {
                         if mask == &<Self as ::fieldmask::Maskable>::empty_mask() {
-                            return self;
+                            return;
                         }
 
-                        let Self { #(#field_idents),* } = self;
-                        Self {
-                            #(#project_arms)*
-                        }
+                        #(#project_arms) *
                     }
 
                     fn update_as_field(

@@ -71,9 +71,7 @@ pub fn maskable_atomic_impl(input: TokenStream) -> TokenStream {
         impl #impl_generics ::fieldmask::SelfMaskable for #ty
         #where_clauses
         {
-            fn project(self, _mask: &Self::Mask) -> Self {
-                self
-            }
+            fn project(&mut self, _mask: &Self::Mask) {}
 
             #update_as_field_fn
             #merge_fn
@@ -83,11 +81,9 @@ pub fn maskable_atomic_impl(input: TokenStream) -> TokenStream {
         #where_clauses
         {
             fn option_project(
-                this: ::core::option::Option<Self>,
+                _this: &mut ::core::option::Option<Self>,
                 _mask: &<Self as ::fieldmask::Maskable>::Mask,
-            ) -> ::core::option::Option<Self> {
-                this
-            }
+            ) {}
 
             fn option_update_as_field(
                 this: &mut ::core::option::Option<Self>,
@@ -107,9 +103,11 @@ pub fn maskable_atomic_impl(input: TokenStream) -> TokenStream {
                             options,
                         );
                     }
-                    (::core::option::Option::None, source) => {
-                        *this = source.map(|s| ::fieldmask::SelfMaskable::project(s, mask));
+                    (::core::option::Option::None, ::core::option::Option::Some(mut source)) => {
+                        ::fieldmask::SelfMaskable::project(&mut source, mask);
+                        *this = ::core::option::Option::Some(source);
                     }
+                    (::core::option::Option::None, ::core::option::Option::None) => {}
                 }
             }
 

@@ -99,7 +99,7 @@ pub trait SelfMaskable: Maskable {
     /// mask protobuf specification][1].
     ///
     /// [1]: https://protobuf.dev/reference/protobuf/google.protobuf/#field-mask.
-    fn project(self, mask: &Self::Mask) -> Self;
+    fn project(&mut self, mask: &Self::Mask);
 
     /// Update the fields of `self` with the fields of `source` according to `mask`.
     ///
@@ -130,7 +130,7 @@ pub trait SelfMaskable: Maskable {
 ///    fields that are not selected by the mask at all.
 pub trait OptionMaskable: Maskable + Sized {
     /// Similar to `SelfMaskable::project`, but it takes `Option<Self>` instead of `Self`.
-    fn option_project(this: Option<Self>, mask: &Self::Mask) -> Option<Self>;
+    fn option_project(this: &mut Option<Self>, mask: &Self::Mask);
 
     /// Similar to `SelfMaskable::update_as_field`, but it takes `Option<Self>` instead of `Self`.
     fn option_update_as_field(
@@ -168,8 +168,10 @@ impl<T: Maskable> Maskable for Option<T> {
 }
 
 impl<T: OptionMaskable> OptionMaskable for Option<T> {
-    fn option_project(this: Option<Self>, mask: &Self::Mask) -> Option<Self> {
-        this.map(|this| T::option_project(this, mask))
+    fn option_project(this: &mut Option<Self>, mask: &Self::Mask) {
+        if let Some(this) = this {
+            T::option_project(this, mask)
+        }
     }
 
     fn option_update_as_field(
@@ -203,7 +205,7 @@ impl<T: OptionMaskable> OptionMaskable for Option<T> {
 }
 
 impl<T: OptionMaskable> SelfMaskable for Option<T> {
-    fn project(self, mask: &Self::Mask) -> Self {
+    fn project(&mut self, mask: &Self::Mask) {
         T::option_project(self, mask)
     }
 
@@ -236,8 +238,8 @@ impl<T: Maskable> Maskable for Box<T> {
 }
 
 impl<T: SelfMaskable> SelfMaskable for Box<T> {
-    fn project(self, mask: &Self::Mask) -> Self {
-        Box::new((*self).project(mask))
+    fn project(&mut self, mask: &Self::Mask) {
+        (**self).project(mask)
     }
 
     fn update_as_field(&mut self, source: Self, mask: &Self::Mask, options: &UpdateOptions) {
@@ -250,11 +252,12 @@ impl<T: SelfMaskable> SelfMaskable for Box<T> {
 }
 
 impl<T: OptionMaskable> OptionMaskable for Box<T> {
-    fn option_project(this: Option<Self>, mask: &Self::Mask) -> Option<Self> {
-        match this {
-            Some(this) => T::option_project(Some(*this), mask).map(Box::new),
-            None => None,
-        }
+    fn option_project(this: &mut Option<Self>, mask: &Self::Mask) {
+        let mut temp = None;
+        mem::swap(this, &mut temp);
+        let mut temp = temp.map(|temp| *temp);
+        temp.project(mask);
+        *this = temp.map(Box::new);
     }
 
     fn option_update_as_field(
