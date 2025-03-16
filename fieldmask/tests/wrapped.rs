@@ -269,11 +269,11 @@ mod update {
         let source = Parent {
             child: Child {
                 a: 2,
-                b: Some(3),
+                b: None,
                 c: Some(None),
                 d: Box::new(5),
                 e: Box::new(Box::new(6)),
-                f: Box::new(Some(7)),
+                f: Box::new(Some(0)),
                 g: Some(Box::new(8)),
             },
         };
@@ -281,12 +281,57 @@ mod update {
         let expected = Parent {
             child: Child {
                 a: 2,
-                b: Some(3),
+                b: Some(0),
                 c: Some(Some(0)),
                 d: Box::new(5),
                 e: Box::new(Box::new(6)),
-                f: Box::new(Some(7)),
+                f: Box::new(Some(0)),
                 g: Some(Box::new(8)),
+            },
+        };
+
+        Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
+            .expect("unable to deserialize mask")
+            .update(&mut target, source, &options);
+
+        assert_eq!(target, expected);
+    }
+
+    #[test]
+    fn implicit_full_mask_with_unnormalized() {
+        let mut target = Parent {
+            child: Child {
+                a: 1,
+                b: Some(2),
+                c: Some(Some(3)),
+                d: Box::new(4),
+                e: Box::new(Box::new(5)),
+                f: Box::new(Some(6)),
+                g: Some(Box::new(7)),
+            },
+        };
+        let mask = vec!["child"];
+        let source = Parent {
+            child: Child {
+                a: 2,
+                b: Some(3),
+                c: Some(None),
+                d: Box::new(5),
+                e: Box::new(Box::new(6)),
+                f: Box::new(Some(7)),
+                g: Some(Box::new(0)),
+            },
+        };
+        let options = Default::default();
+        let expected = Parent {
+            child: Child {
+                a: 2,
+                b: Some(3),
+                c: Some(Some(3)),
+                d: Box::new(5),
+                e: Box::new(Box::new(6)),
+                f: Box::new(Some(7)),
+                g: Some(Box::new(7)),
             },
         };
 

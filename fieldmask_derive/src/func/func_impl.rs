@@ -80,55 +80,55 @@ pub fn maskable_atomic_impl(input: TokenStream) -> TokenStream {
         }
 
         impl #impl_generics ::fieldmask::OptionMaskable for #ty
-            #where_clauses
-            {
-                fn option_project(
-                    this: ::core::option::Option<Self>,
-                    _mask: &<Self as ::fieldmask::Maskable>::Mask,
-                ) -> ::core::option::Option<Self> {
-                    this
-                }
+        #where_clauses
+        {
+            fn option_project(
+                this: ::core::option::Option<Self>,
+                _mask: &<Self as ::fieldmask::Maskable>::Mask,
+            ) -> ::core::option::Option<Self> {
+                this
+            }
 
-                fn option_update_as_field(
-                    this: &mut ::core::option::Option<Self>,
-                    source: ::core::option::Option<Self>,
-                    mask: &<Self as ::fieldmask::Maskable>::Mask,
-                    options: &::fieldmask::UpdateOptions,
-                ) {
-                    match (this.as_mut(), source) {
-                        (::core::option::Option::Some(this), ::core::option::Option::Some(source)) => {
-                            ::fieldmask::SelfMaskable::update_as_field(this, source, mask, options);
-                        }
-                        (::core::option::Option::Some(this), ::core::option::Option::None) => {
-                            ::fieldmask::SelfMaskable::update_as_field(
-                                this,
-                                ::core::default::Default::default(),
-                                mask,
-                                options,
-                            );
-                        }
-                        (::core::option::Option::None, source) => {
-                            *this = source.map(|s| ::fieldmask::SelfMaskable::project(s, mask));
-                        }
+            fn option_update_as_field(
+                this: &mut ::core::option::Option<Self>,
+                source: ::core::option::Option<Self>,
+                mask: &<Self as ::fieldmask::Maskable>::Mask,
+                options: &::fieldmask::UpdateOptions,
+            ) {
+                match (this.as_mut(), source) {
+                    (::core::option::Option::Some(this), ::core::option::Option::Some(source)) => {
+                        ::fieldmask::SelfMaskable::update_as_field(this, source, mask, options);
                     }
-                }
-
-                fn option_merge(
-                    this: &mut ::core::option::Option<Self>,
-                    source: ::core::option::Option<Self>,
-                    options: &::fieldmask::UpdateOptions,
-                ) {
-                    match (this.as_mut(), source) {
-                        (::core::option::Option::Some(this), ::core::option::Option::Some(source)) => {
-                            ::fieldmask::SelfMaskable::merge(this, source, options);
-                        }
-                        (_, ::core::option::Option::None) => {}
-                        (::core::option::Option::None, source) => {
-                            *this = source;
-                        }
+                    (::core::option::Option::Some(this), ::core::option::Option::None) => {
+                        ::fieldmask::SelfMaskable::update_as_field(
+                            this,
+                            ::core::default::Default::default(),
+                            mask,
+                            options,
+                        );
+                    }
+                    (::core::option::Option::None, source) => {
+                        *this = source.map(|s| ::fieldmask::SelfMaskable::project(s, mask));
                     }
                 }
             }
+
+            fn option_merge(
+                this: &mut ::core::option::Option<Self>,
+                source: ::core::option::Option<Self>,
+                options: &::fieldmask::UpdateOptions,
+            ) {
+                match (this.as_mut(), source) {
+                    (::core::option::Option::Some(this), ::core::option::Option::Some(source)) => {
+                        ::fieldmask::SelfMaskable::merge(this, source, options);
+                    }
+                    (_, ::core::option::Option::None) => {}
+                    (::core::option::Option::None, source) => {
+                        *this = source;
+                    }
+                }
+            }
+        }
     }
     .into()
 }
