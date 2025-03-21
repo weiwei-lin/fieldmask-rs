@@ -52,7 +52,12 @@ impl<T: SelfMaskable> Mask<T> {
     /// Update the fields of `target` with the fields of `source` according to the field mask.
     ///
     /// An empty field mask is treated as a full mask.
-    pub fn update(&self, target: &mut T, source: T, options: &UpdateOptions) {
+    pub fn update(&self, target: &mut T, source: T) {
+        self.update_with_options(target, source, &UpdateOptions::default());
+    }
+
+    /// The same as `update`, but with additional options.
+    pub fn update_with_options(&self, target: &mut T, source: T, options: &UpdateOptions) {
         if self == &Self::empty() {
             target.update_as_field(source, &Self::full(), options);
             return;

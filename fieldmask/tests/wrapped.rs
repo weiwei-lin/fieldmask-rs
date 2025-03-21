@@ -202,7 +202,7 @@ mod update {
 
         Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
             .expect("unable to deserialize mask")
-            .update(&mut target, source, &options);
+            .update_with_options(&mut target, source, &options);
 
         assert_eq!(target, expected);
     }
@@ -247,7 +247,7 @@ mod update {
 
         Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
             .expect("unable to deserialize mask")
-            .update(&mut target, source, &options);
+            .update_with_options(&mut target, source, &options);
 
         assert_eq!(target, expected);
     }
@@ -292,7 +292,7 @@ mod update {
 
         Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
             .expect("unable to deserialize mask")
-            .update(&mut target, source, &options);
+            .update_with_options(&mut target, source, &options);
 
         assert_eq!(target, expected);
     }
@@ -337,7 +337,7 @@ mod update {
 
         Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
             .expect("unable to deserialize mask")
-            .update(&mut target, source, &options);
+            .update_with_options(&mut target, source, &options);
 
         assert_eq!(target, expected);
     }
