@@ -10,6 +10,7 @@ pub fn maskable_atomic_impl(input: TokenStream) -> TokenStream {
         ty,
         update_as_field_fn,
         merge_fn,
+        option_project_fn,
         ..
     } = parse_macro_input!(input);
 
@@ -43,6 +44,21 @@ pub fn maskable_atomic_impl(input: TokenStream) -> TokenStream {
                 }
             }
         });
+    let option_project_fn = option_project_fn
+        .map(|item| item.to_token_stream())
+        .unwrap_or_else(|| {
+            quote! {
+                fn option_project(
+                    this: &mut ::core::option::Option<Self>,
+                    _mask: &<Self as ::fieldmask::Maskable>::Mask,
+                    options: &::fieldmask::ProjectOptions,
+                ) {
+                    if options.normalize && this == &::core::option::Option::Some(::core::default::Default::default()) {
+                        *this = ::core::option::Option::None;
+                    }
+                }
+            }
+        });
 
     quote! {
         impl #impl_generics ::fieldmask::Maskable for #ty
@@ -71,7 +87,7 @@ pub fn maskable_atomic_impl(input: TokenStream) -> TokenStream {
         impl #impl_generics ::fieldmask::SelfMaskable for #ty
         #where_clauses
         {
-            fn project(&mut self, _mask: &Self::Mask) {}
+            fn project(&mut self, _mask: &Self::Mask, _options: &::fieldmask::ProjectOptions) {}
 
             #update_as_field_fn
             #merge_fn
@@ -80,10 +96,7 @@ pub fn maskable_atomic_impl(input: TokenStream) -> TokenStream {
         impl #impl_generics ::fieldmask::OptionMaskable for #ty
         #where_clauses
         {
-            fn option_project(
-                _this: &mut ::core::option::Option<Self>,
-                _mask: &<Self as ::fieldmask::Maskable>::Mask,
-            ) {}
+            #option_project_fn
 
             fn option_update_as_field(
                 this: &mut ::core::option::Option<Self>,
@@ -104,7 +117,7 @@ pub fn maskable_atomic_impl(input: TokenStream) -> TokenStream {
                         );
                     }
                     (::core::option::Option::None, ::core::option::Option::Some(mut source)) => {
-                        ::fieldmask::SelfMaskable::project(&mut source, mask);
+                        ::fieldmask::SelfMaskable::project(&mut source, mask, &::core::default::Default::default());
                         *this = ::core::option::Option::Some(source);
                     }
                     (::core::option::Option::None, ::core::option::Option::None) => {}

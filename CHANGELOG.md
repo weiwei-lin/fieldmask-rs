@@ -14,11 +14,18 @@ For released changes, check the release notes [here](https://github.com/weiwei-l
     - This enables more efficient implementation of `SelfMaskable` on `Box<T: SelfMaskable>`.
     - This enables more efficient implementation of `SelfMaskable` on large types.
     - `Mask::project`'s signature is unchanged.
-- `Mask::update` no longer takes an `UpdateOptions` argument.
+- `Maskable::project` now takes a `ProjectOptions` argument.
+    - Which can be used to normalize a message (e.g. converts `Some(Default::default())` to `None`).
+- Deriving `OptionMaskable` on a `struct` now requires the `struct` to implement `PartialEq`.
+    - This is required to implement normalization.
+- `Mask::update` no longer takes a `UpdateOptions` argument.
     - Use `Mask::update_with_options` instead if you need to use options.
 
 ## Features
-- `Mask` now implements `empty()`.
+- `Mask` now implements
+    - `empty()`
+    - `project_with_options()`
+    - `update_with_options()`
 - Added crate-level documentation.
 
 ## Bug fixes

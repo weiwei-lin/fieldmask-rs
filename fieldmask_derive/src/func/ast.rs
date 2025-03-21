@@ -14,6 +14,7 @@ pub struct Input {
     pub brace_token: Brace,
     pub update_as_field_fn: Option<ImplItemFn>,
     pub merge_fn: Option<ImplItemFn>,
+    pub option_project_fn: Option<ImplItemFn>,
 }
 
 impl Parse for Input {
@@ -32,6 +33,7 @@ impl Parse for Input {
             brace_token,
             update_as_field_fn: None,
             merge_fn: None,
+            option_project_fn: None,
         };
 
         while content.peek(Token![fn]) {
@@ -54,6 +56,15 @@ impl Parse for Input {
                         ));
                     }
                     ret.merge_fn = Some(item_fn);
+                }
+                "option_project" => {
+                    if ret.option_project_fn.is_some() {
+                        return Err(syn::Error::new(
+                            item_fn.span(),
+                            "duplicated declaration of method `option_project`",
+                        ));
+                    }
+                    ret.option_project_fn = Some(item_fn);
                 }
                 name => {
                     return Err(syn::Error::new(

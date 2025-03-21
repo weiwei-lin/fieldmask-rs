@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use fieldmask::{Mask, MaskInput, Maskable, OptionMaskable, SelfMaskable};
+use fieldmask::{Mask, MaskInput, Maskable, OptionMaskable, ProjectOptions, SelfMaskable};
 
 #[derive(Debug, Maskable, OptionMaskable, PartialEq)]
 enum OneOf {
@@ -134,6 +134,8 @@ mod update {
         Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
+        let target = Mask::<Parent>::empty()
+            .project_with_options(target, &ProjectOptions { normalize: true });
 
         assert_eq!(target, expected);
     }
@@ -158,6 +160,8 @@ mod update {
         Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
+        let target = Mask::<Parent>::empty()
+            .project_with_options(target, &ProjectOptions { normalize: true });
 
         assert_eq!(target, expected);
     }
@@ -182,6 +186,8 @@ mod update {
         Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
+        let target = Mask::<Parent>::empty()
+            .project_with_options(target, &ProjectOptions { normalize: true });
 
         assert_eq!(target, expected);
     }
@@ -206,6 +212,8 @@ mod update {
         Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
+        let target = Mask::<Parent>::empty()
+            .project_with_options(target, &ProjectOptions { normalize: true });
 
         assert_eq!(target, expected);
     }
@@ -227,6 +235,8 @@ mod update {
         Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
+        let target = Mask::<Parent>::empty()
+            .project_with_options(target, &ProjectOptions { normalize: true });
 
         assert_eq!(target, expected);
     }
@@ -245,6 +255,8 @@ mod update {
         Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
+        let target = Mask::<Parent>::empty()
+            .project_with_options(target, &ProjectOptions { normalize: true });
 
         assert_eq!(target, expected);
     }
@@ -266,6 +278,8 @@ mod update {
         Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
+        let target = Mask::<Parent>::empty()
+            .project_with_options(target, &ProjectOptions { normalize: true });
 
         assert_eq!(target, expected);
     }
@@ -287,6 +301,8 @@ mod update {
         Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
+        let target = Mask::<Parent>::empty()
+            .project_with_options(target, &ProjectOptions { normalize: true });
 
         assert_eq!(target, expected);
     }

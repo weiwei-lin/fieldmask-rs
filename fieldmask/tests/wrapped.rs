@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use fieldmask::{Mask, MaskInput, Maskable, SelfMaskable};
+use fieldmask::{Mask, MaskInput, Maskable, ProjectOptions, SelfMaskable};
 
 #[derive(Debug, Maskable, PartialEq, SelfMaskable)]
 struct Parent {
@@ -123,6 +123,23 @@ mod project {
             .project(source);
 
         assert_eq!(actual, expected);
+
+        // Test normalization.
+        let expected = Parent {
+            child: Child {
+                a: 1,
+                b: Some(2),
+                c: None,
+                d: Box::new(4),
+                e: Box::new(Box::new(5)),
+                f: Box::new(Some(6)),
+                g: Some(Box::new(7)),
+            },
+        };
+
+        let actual = Mask::<Parent>::empty()
+            .project_with_options(actual, &ProjectOptions { normalize: true });
+        assert_eq!(actual, expected);
     }
 
     #[test]
@@ -203,6 +220,8 @@ mod update {
         Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
+        let target = Mask::<Parent>::empty()
+            .project_with_options(target, &ProjectOptions { normalize: true });
 
         assert_eq!(target, expected);
     }
@@ -248,6 +267,8 @@ mod update {
         Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
+        let target = Mask::<Parent>::empty()
+            .project_with_options(target, &ProjectOptions { normalize: true });
 
         assert_eq!(target, expected);
     }
@@ -281,11 +302,11 @@ mod update {
         let expected = Parent {
             child: Child {
                 a: 2,
-                b: Some(0),
-                c: Some(Some(0)),
+                b: None,
+                c: None,
                 d: Box::new(5),
                 e: Box::new(Box::new(6)),
-                f: Box::new(Some(0)),
+                f: Box::new(None),
                 g: Some(Box::new(8)),
             },
         };
@@ -293,6 +314,8 @@ mod update {
         Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
+        let target = Mask::<Parent>::empty()
+            .project_with_options(target, &ProjectOptions { normalize: true });
 
         assert_eq!(target, expected);
     }
@@ -338,6 +361,8 @@ mod update {
         Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
+        let target = Mask::<Parent>::empty()
+            .project_with_options(target, &ProjectOptions { normalize: true });
 
         assert_eq!(target, expected);
     }

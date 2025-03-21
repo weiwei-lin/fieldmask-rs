@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use fieldmask::{Mask, MaskInput, Maskable, SelfMaskable};
+use fieldmask::{Mask, MaskInput, Maskable, ProjectOptions, SelfMaskable, UpdateOptions};
 
 #[derive(Debug, Default, Maskable, PartialEq, SelfMaskable)]
 struct Child {
@@ -101,8 +101,6 @@ mod project {
 }
 
 mod update {
-    use fieldmask::UpdateOptions;
-
     use super::*;
 
     #[test]
@@ -137,6 +135,8 @@ mod update {
         Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
+        let target = Mask::<Parent>::empty()
+            .project_with_options(target, &ProjectOptions { normalize: true });
 
         assert_eq!(target, expected);
     }
@@ -173,6 +173,8 @@ mod update {
         Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
+        let target = Mask::<Parent>::empty()
+            .project_with_options(target, &ProjectOptions { normalize: true });
 
         assert_eq!(target, expected);
     }
@@ -212,6 +214,8 @@ mod update {
         Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
+        let target = Mask::<Parent>::empty()
+            .project_with_options(target, &ProjectOptions { normalize: true });
 
         assert_eq!(target, expected);
     }
@@ -248,6 +252,8 @@ mod update {
         Mask::<Parent>::try_from(MaskInput(mask.into_iter()))
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
+        let target = Mask::<Parent>::empty()
+            .project_with_options(target, &ProjectOptions { normalize: true });
 
         assert_eq!(target, expected);
     }

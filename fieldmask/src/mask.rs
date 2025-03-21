@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 
 use derive_more::{Deref, DerefMut};
 
-use crate::{DeserializeMaskError, Maskable, SelfMaskable, UpdateOptions};
+use crate::{DeserializeMaskError, Maskable, ProjectOptions, SelfMaskable, UpdateOptions};
 
 /// A convenient wrapper around a mask value.
 /// Allows us to
@@ -26,7 +26,7 @@ impl<T: Maskable> Mask<T> {
         Self(T::full_mask())
     }
 
-    /// Includes the field specified by `field_path``.
+    /// Includes the field specified by `field_path`.
     ///
     /// When the function returns `Ok`, `self` is modified to include the field specified by
     /// `field_path`. Otherwise, `self` is unchanged.
@@ -44,8 +44,12 @@ impl<T: SelfMaskable> Mask<T> {
     /// Project the fields of `source` according to the field mask.
     ///
     /// An empty field mask is treated as a full mask.
-    pub fn project(&self, mut source: T) -> T {
-        source.project(self);
+    pub fn project(&self, source: T) -> T {
+        self.project_with_options(source, &Default::default())
+    }
+
+    pub fn project_with_options(&self, mut source: T, options: &ProjectOptions) -> T {
+        source.project(self, options);
         source
     }
 
@@ -53,7 +57,7 @@ impl<T: SelfMaskable> Mask<T> {
     ///
     /// An empty field mask is treated as a full mask.
     pub fn update(&self, target: &mut T, source: T) {
-        self.update_with_options(target, source, &UpdateOptions::default());
+        self.update_with_options(target, source, &Default::default());
     }
 
     /// The same as `update`, but with additional options.

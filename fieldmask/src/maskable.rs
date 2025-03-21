@@ -18,6 +18,17 @@ pub enum DeserializeMaskError<'a> {
     },
 }
 
+/// Options for projecting a message with a field mask.
+#[derive(Debug, Default)]
+pub struct ProjectOptions {
+    /// If true, the selected fields should be normalized. This means equivalent values should be
+    /// replaced by their canonical representation. For example, `Some(0)` should be normalized to
+    /// `None` for an optional integer field.
+    ///
+    /// Defaults to `false`.
+    pub normalize: bool,
+}
+
 /// Options for updating a message with a field mask.
 #[derive(Debug, Default)]
 pub struct UpdateOptions {
@@ -99,7 +110,7 @@ pub trait SelfMaskable: Maskable {
     /// mask protobuf specification][1].
     ///
     /// [1]: https://protobuf.dev/reference/protobuf/google.protobuf/#field-mask.
-    fn project(&mut self, mask: &Self::Mask);
+    fn project(&mut self, mask: &Self::Mask, options: &ProjectOptions);
 
     /// Update the fields of `self` with the fields of `source` according to `mask`.
     ///
@@ -130,7 +141,7 @@ pub trait SelfMaskable: Maskable {
 ///    fields that are not selected by the mask at all.
 pub trait OptionMaskable: Maskable + Sized {
     /// Similar to `SelfMaskable::project`, but it takes `Option<Self>` instead of `Self`.
-    fn option_project(this: &mut Option<Self>, mask: &Self::Mask);
+    fn option_project(this: &mut Option<Self>, mask: &Self::Mask, options: &ProjectOptions);
 
     /// Similar to `SelfMaskable::update_as_field`, but it takes `Option<Self>` instead of `Self`.
     fn option_update_as_field(
@@ -168,9 +179,12 @@ impl<T: Maskable> Maskable for Option<T> {
 }
 
 impl<T: OptionMaskable> OptionMaskable for Option<T> {
-    fn option_project(this: &mut Option<Self>, mask: &Self::Mask) {
+    fn option_project(this: &mut Option<Self>, mask: &Self::Mask, options: &ProjectOptions) {
         if let Some(this) = this {
-            T::option_project(this, mask)
+            T::option_project(this, mask, options);
+        }
+        if options.normalize && this.as_ref().map(|s| s.is_none()).unwrap_or(false) {
+            *this = None;
         }
     }
 
@@ -205,8 +219,8 @@ impl<T: OptionMaskable> OptionMaskable for Option<T> {
 }
 
 impl<T: OptionMaskable> SelfMaskable for Option<T> {
-    fn project(&mut self, mask: &Self::Mask) {
-        T::option_project(self, mask)
+    fn project(&mut self, mask: &Self::Mask, options: &ProjectOptions) {
+        T::option_project(self, mask, options)
     }
 
     fn update_as_field(&mut self, source: Self, mask: &Self::Mask, options: &UpdateOptions) {
@@ -238,8 +252,8 @@ impl<T: Maskable> Maskable for Box<T> {
 }
 
 impl<T: SelfMaskable> SelfMaskable for Box<T> {
-    fn project(&mut self, mask: &Self::Mask) {
-        (**self).project(mask)
+    fn project(&mut self, mask: &Self::Mask, options: &ProjectOptions) {
+        (**self).project(mask, options);
     }
 
     fn update_as_field(&mut self, source: Self, mask: &Self::Mask, options: &UpdateOptions) {
@@ -252,12 +266,16 @@ impl<T: SelfMaskable> SelfMaskable for Box<T> {
 }
 
 impl<T: OptionMaskable> OptionMaskable for Box<T> {
-    fn option_project(this: &mut Option<Self>, mask: &Self::Mask) {
+    fn option_project(this: &mut Option<Self>, mask: &Self::Mask, options: &ProjectOptions) {
         let mut temp = None;
         mem::swap(this, &mut temp);
         let mut temp = temp.map(|temp| *temp);
-        temp.project(mask);
-        *this = temp.map(Box::new);
+        temp.project(mask, options);
+        if options.normalize && temp.is_none() {
+            *this = None;
+        } else {
+            *this = temp.map(Box::new);
+        }
     }
 
     fn option_update_as_field(
@@ -308,6 +326,12 @@ maskable_atomic!(
                 *self = source;
             }
         }
+
+        fn option_project(this: &mut Option<Self>, _mask: &Self::Mask, options: &ProjectOptions) {
+            if options.normalize && this.as_ref().map(|s| s.is_empty()).unwrap_or(false) {
+                *this = None;
+            }
+        }
     }
 );
 
@@ -316,6 +340,12 @@ maskable_atomic!(
         fn merge(&mut self, source: Self, _options: &UpdateOptions) {
             if !source.is_empty() {
                 *self = source;
+            }
+        }
+
+        fn option_project(this: &mut Option<Self>, _mask: &Self::Mask, options: &ProjectOptions) {
+            if options.normalize && this.as_ref().map(|s| s.is_empty()).unwrap_or(false) {
+                *this = None;
             }
         }
     }
@@ -335,6 +365,12 @@ maskable_atomic!(
 
             self.extend(source);
         }
+
+        fn option_project(this: &mut Option<Self>, _mask: &Self::Mask, options: &ProjectOptions) {
+            if options.normalize && this.as_ref().map(|s| s.is_empty()).unwrap_or(false) {
+                *this = None;
+            }
+        }
     }
 );
 
@@ -347,6 +383,12 @@ mod prost_integration {
             fn merge(&mut self, source: Self, _options: &UpdateOptions) {
                 if !source.is_empty() {
                     *self = source;
+                }
+            }
+
+            fn option_project(this: &mut Option<Self>, _mask: &Self::Mask, options: &ProjectOptions) {
+                if options.normalize && this.as_ref().map(|s| s.is_empty()).unwrap_or(false) {
+                    *this = None;
                 }
             }
         }

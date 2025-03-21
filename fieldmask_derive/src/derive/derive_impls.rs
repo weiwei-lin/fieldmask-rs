@@ -154,6 +154,7 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
                     fn option_project(
                         _this: &mut ::core::option::Option<Self>,
                         _mask: &<Self as ::fieldmask::Maskable>::Mask,
+                        _options: &::fieldmask::ProjectOptions,
                     ) {}
 
                     fn option_update_as_field(
@@ -185,7 +186,7 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
                 quote! {
                     Self::#ident(this) => {
                         if let ::core::option::Option::Some(mask) = &mask.#index {
-                            ::fieldmask::SelfMaskable::project(this, mask);
+                            ::fieldmask::SelfMaskable::project(this, mask, options);
                             return;
                         }
                     }
@@ -201,7 +202,7 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
                             if let ::core::option::Option::Some(Self::#ident(this)) = this {
                                 ::fieldmask::SelfMaskable::update_as_field(this, source, mask, options);
                             } else {
-                                ::fieldmask::SelfMaskable::project(&mut source, mask);
+                                ::fieldmask::SelfMaskable::project(&mut source, mask, &::core::default::Default::default());
                                 *this = ::core::option::Option::Some(Self::#ident(source));
                             }
                             return;
@@ -248,7 +249,10 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
                     fn option_project(
                         this: &mut ::core::option::Option<Self>,
                         mask: &<Self as ::fieldmask::Maskable>::Mask,
+                        options: &::fieldmask::ProjectOptions,
                     ) {
+                        // TODO: fix handling of empty mask.
+                        // Currently, empty mask causes nothing to be selected.
                         if let ::core::option::Option::Some(this) = this {
                             match this {
                                 #(#project_match_arms)*
@@ -308,9 +312,13 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
                     fn option_project(
                         this: &mut ::core::option::Option<Self>,
                         mask: &<Self as ::fieldmask::Maskable>::Mask,
+                        options: &::fieldmask::ProjectOptions,
                     ) {
-                        if let ::core::option::Option::Some(this) = this {
-                            ::fieldmask::SelfMaskable::project(this, mask)
+                        if let ::core::option::Option::Some(inner) = this {
+                            ::fieldmask::SelfMaskable::project(inner, mask, options);
+                            if inner == &::core::default::Default::default() {
+                                *this = ::core::option::Option::None;
+                            }
                         }
                     }
 
@@ -333,7 +341,7 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
                                 );
                             }
                             (::core::option::Option::None, ::core::option::Option::Some(mut source)) => {
-                                ::fieldmask::SelfMaskable::project(&mut source, mask);
+                                ::fieldmask::SelfMaskable::project(&mut source, mask, &::core::default::Default::default());
                                 *this = Some(source);
                             }
                             (::core::option::Option::None, ::core::option::Option::None) => {}
@@ -378,7 +386,11 @@ pub fn derive_self_maskable_impl(input: TokenStream) -> TokenStream {
             // Unit enums have no fields, the field mask is always empty.
             quote! {
                 impl ::fieldmask::SelfMaskable for #ident {
-                    fn project(&mut self, _mask: &<Self as ::fieldmask::Maskable>::Mask) {}
+                    fn project(
+                        &mut self,
+                        _mask: &<Self as ::fieldmask::Maskable>::Mask,
+                        _options: &::fieldmask::ProjectOptions,
+                    ) {}
 
                     fn update_as_field(
                         &mut self,
@@ -403,6 +415,15 @@ pub fn derive_self_maskable_impl(input: TokenStream) -> TokenStream {
             );
         }
         InputType::Struct => {
+            // For each field in the struct, generate a field arm that performs normalize on the field.
+            let normalize_arms = fields.iter().map(|field| {
+                let ident = field.ident;
+                let ty = field.ty;
+                quote! {
+                    ::fieldmask::SelfMaskable::project(&mut self.#ident, &<# ty as ::fieldmask::Maskable>::full_mask(), options);
+                }
+            });
+
             // For each field in the struct, generate a field arm that performs projection on the field.
             let project_arms = fields.iter().enumerate().map(|(i, field)| {
                 let index = Index::from(i);
@@ -410,13 +431,13 @@ pub fn derive_self_maskable_impl(input: TokenStream) -> TokenStream {
 
                 if field.is_flatten {
                     quote! {
-                        ::fieldmask::SelfMaskable::project(&mut self.#ident, &mask.#index);
+                        ::fieldmask::SelfMaskable::project(&mut self.#ident, &mask.#index, options);
                     }
                 } else {
                     quote! {
                         match mask.#index.as_deref() {
                             ::core::option::Option::Some(mask) => {
-                                ::fieldmask::SelfMaskable::project(&mut self.#ident, mask);
+                                ::fieldmask::SelfMaskable::project(&mut self.#ident, mask, options);
                             }
                             ::core::option::Option::None => {
                                 self.#ident = ::core::default::Default::default();
@@ -461,8 +482,15 @@ pub fn derive_self_maskable_impl(input: TokenStream) -> TokenStream {
                 impl #impl_generics ::fieldmask::SelfMaskable for #ident #ty_generics
                 #where_clauses
                 {
-                    fn project(&mut self, mask: &<Self as ::fieldmask::Maskable>::Mask) {
+                    fn project(
+                        &mut self,
+                        mask: &<Self as ::fieldmask::Maskable>::Mask,
+                        options: &::fieldmask::ProjectOptions,
+                    ) {
                         if mask == &<Self as ::fieldmask::Maskable>::empty_mask() {
+                            if options.normalize {
+                                #(#normalize_arms)*
+                            }
                             return;
                         }
 

@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use fieldmask::{Mask, MaskInput, Maskable, SelfMaskable};
+use fieldmask::{Mask, MaskInput, Maskable, ProjectOptions, SelfMaskable};
 
 #[derive(Debug, Maskable, PartialEq, SelfMaskable)]
 struct Flat {
@@ -70,6 +70,8 @@ mod update {
         Mask::<Flat>::try_from(MaskInput(mask.into_iter()))
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
+        let target =
+            Mask::<Flat>::empty().project_with_options(target, &ProjectOptions { normalize: true });
 
         assert_eq!(target, expected);
     }
@@ -85,6 +87,8 @@ mod update {
         Mask::<Flat>::try_from(MaskInput(mask.into_iter()))
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
+        let target =
+            Mask::<Flat>::empty().project_with_options(target, &ProjectOptions { normalize: true });
 
         assert_eq!(target, expected);
     }
