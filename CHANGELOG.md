@@ -6,8 +6,6 @@ For released changes, check the release notes [here](https://github.com/weiwei-l
 
 # Unreleased
 ## Breaking changes
-- `ProjectOptions` and `UpdateOptions` are now marked with `#[non_exhaustive]`.
-    - You can use uses `::builder()` pattern to construct them.
 
 ## Features
 
