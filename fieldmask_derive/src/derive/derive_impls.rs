@@ -455,10 +455,15 @@ pub fn derive_self_maskable_impl(input: TokenStream) -> TokenStream {
             let project_arms = fields.iter().enumerate().map(|(i, field)| {
                 let index = Index::from(i);
                 let ident = field.ident;
+                let ty = field.ty;
 
                 if field.is_flatten {
                     quote! {
-                        ::fieldmask::SelfMaskable::project(&mut self.#ident, &mask.#index, options);
+                        if mask.#index == ::fieldmask::Mask::<#ty>::empty() {
+                            self.#ident = ::core::default::Default::default();
+                        } else {
+                            ::fieldmask::SelfMaskable::project(&mut self.#ident, &mask.#index, options);
+                        }
                     }
                 } else {
                     quote! {

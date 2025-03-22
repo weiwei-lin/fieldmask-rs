@@ -31,3 +31,4 @@ For released changes, check the release notes [here](https://github.com/weiwei-l
 ## Bug fixes
 - Fix empty mask not treated as a full mask when projecting a tuple enum type with derived
   `OptionMaskable` implementation.
+- Fix flatten child being selected even when non of the child field is selected.
