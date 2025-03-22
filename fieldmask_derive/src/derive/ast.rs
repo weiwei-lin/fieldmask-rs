@@ -42,6 +42,8 @@ impl Parse for Input {
 
         let lookahead = input.lookahead1();
         if lookahead.peek(Token![struct]) {
+            assert_no_attr(&attrs)?;
+
             let struct_token = input.parse()?;
             let ident = input.parse()?;
             let generics = {
@@ -79,31 +81,31 @@ impl Parse for Input {
             let _: Option<Token![,]> = content.parse()?;
             match first_variant {
                 EnumVariant::Unit(first_variant) => {
-                    let mut variants =
-                        content.parse_terminated(UnitEnumVariant::parse, Token![,])?;
-                    variants.insert(0, first_variant);
-
-                    let mut normalize_some_default = false;
-
                     let attr_iter = attrs
                         .iter()
                         .filter(|attr| attr.path().is_ident("fieldmask"))
                         .map(|attr| attr.parse_args())
                         .collect::<syn::Result<Vec<_>>>()?
                         .into_iter()
-                        .flat_map(|attrs: Wrap<Punctuated<UnitEnumAttribute, Token![,]>>| attrs.0)
-                        .filter(|attr| {
-                            matches!(attr, UnitEnumAttribute::NormalizeSomeDefault { .. })
-                        });
+                        .flat_map(|attrs: Wrap<Punctuated<UnitEnumAttribute, Token![,]>>| attrs.0);
 
+                    let mut variants =
+                        content.parse_terminated(UnitEnumVariant::parse, Token![,])?;
+                    variants.insert(0, first_variant);
+
+                    let mut normalize_some_default = false;
                     for attr in attr_iter {
-                        if normalize_some_default {
-                            return Err(syn::Error::new_spanned(
-                                attr,
-                                "duplicated normalize_some_default attribute",
-                            ));
+                        match attr {
+                            UnitEnumAttribute::NormalizeSomeDefault { .. } => {
+                                if normalize_some_default {
+                                    return Err(syn::Error::new_spanned(
+                                        attr,
+                                        "duplicated normalize_some_default attribute",
+                                    ));
+                                }
+                                normalize_some_default = true;
+                            }
                         }
-                        normalize_some_default = true;
                     }
 
                     return Ok(Self::UnitEnum(ItemUnitEnum {
@@ -118,6 +120,8 @@ impl Parse for Input {
                     }));
                 }
                 EnumVariant::Tuple(first_variant) => {
+                    assert_no_attr(&attrs)?;
+
                     let mut variants =
                         content.parse_terminated(TupleEnumVariant::parse, Token![,])?;
                     variants.insert(0, first_variant);
@@ -285,6 +289,8 @@ pub struct UnitEnumVariant {
 
 impl UnitEnumVariant {
     fn parse_content(attrs: Vec<Attribute>, ident: Ident, input: ParseStream) -> syn::Result<Self> {
+        assert_no_attr(&attrs)?;
+
         let discriminant = if input.peek(Token![=]) {
             let eq_token = input.parse()?;
             let discriminant = input.parse()?;
@@ -320,6 +326,8 @@ pub struct TupleEnumVariant {
 
 impl TupleEnumVariant {
     fn parse_content(attrs: Vec<Attribute>, ident: Ident, input: ParseStream) -> syn::Result<Self> {
+        assert_no_attr(&attrs)?;
+
         let content;
         let paren_token = parenthesized!(content in input);
         let tuple_attrs = content.call(Attribute::parse_outer)?;
@@ -385,17 +393,20 @@ impl Parse for NamedField {
             .map(|attr| attr.parse_args())
             .collect::<syn::Result<Vec<_>>>()?
             .into_iter()
-            .flat_map(|attrs: Wrap<Punctuated<NamedFieldAttribute, Token![,]>>| attrs.0)
-            .filter(|attr| matches!(attr, NamedFieldAttribute::Flatten { .. }));
+            .flat_map(|attrs: Wrap<Punctuated<NamedFieldAttribute, Token![,]>>| attrs.0);
 
         for attr in attr_iter {
-            if is_flatten {
-                return Err(syn::Error::new_spanned(
-                    attr,
-                    "duplicated flatten attribute",
-                ));
+            match attr {
+                NamedFieldAttribute::Flatten { .. } => {
+                    if is_flatten {
+                        return Err(syn::Error::new_spanned(
+                            attr,
+                            "duplicated flatten attribute",
+                        ));
+                    }
+                    is_flatten = true;
+                }
             }
-            is_flatten = true;
         }
 
         Ok(NamedField {
@@ -467,4 +478,30 @@ pub struct MessageInfo<'a> {
     /// The fields of the message.
     /// Note that unit enum is considered a single value so it does not have any field.
     pub fields: Vec<MessageField<'a>>,
+}
+
+fn assert_no_attr(attrs: &[Attribute]) -> syn::Result<()> {
+    let _attr_iter = attrs
+        .iter()
+        .filter(|attr| attr.path().is_ident("fieldmask"))
+        .map(|attr| attr.parse_args())
+        .collect::<syn::Result<Vec<_>>>()?
+        .into_iter()
+        .flat_map(|attrs: Wrap<Punctuated<NoAttribute, Token![,]>>| attrs.0);
+    Ok(())
+}
+
+/// Represents an attribute for an item that should not have any attribute.
+#[derive(PartialEq)]
+enum NoAttribute {}
+
+impl Parse for NoAttribute {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let meta: Meta = input.parse()?;
+        Err(syn::Error::new_spanned(meta, "invalid meta"))
+    }
+}
+
+impl ToTokens for NoAttribute {
+    fn to_tokens(&self, _tokens: &mut TokenStream) {}
 }

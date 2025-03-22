@@ -20,6 +20,7 @@ For released changes, check the release notes [here](https://github.com/weiwei-l
     - This is required to implement normalization.
 - `Mask::update` no longer takes a `UpdateOptions` argument.
     - Use `Mask::update_with_options` instead if you need to use options.
+- Invalid fieldmask attributes are rejected (e.g. `#[fieldmask(no_such_attribute)]`).
 
 ## Features
 - `Mask` now implements
