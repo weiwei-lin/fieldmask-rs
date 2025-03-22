@@ -3,6 +3,7 @@ use std::{collections::HashMap, mem};
 use fieldmask_derive::maskable_atomic;
 use textwrap::indent;
 use thiserror::Error;
+use typed_builder::TypedBuilder;
 
 #[derive(Debug, Error)]
 pub enum DeserializeMaskError<'a> {
@@ -19,18 +20,21 @@ pub enum DeserializeMaskError<'a> {
 }
 
 /// Options for projecting a message with a field mask.
-#[derive(Debug, Default)]
+#[derive(TypedBuilder, Debug, Default)]
+#[non_exhaustive]
 pub struct ProjectOptions {
     /// If true, the selected fields should be normalized. This means equivalent values should be
     /// replaced by their canonical representation. For example, `Some(0)` should be normalized to
     /// `None` for an optional integer field.
     ///
     /// Defaults to `false`.
+    #[builder(default = false)]
     pub normalize: bool,
 }
 
 /// Options for updating a message with a field mask.
-#[derive(Debug, Default)]
+#[derive(TypedBuilder, Debug, Default)]
+#[non_exhaustive]
 pub struct UpdateOptions {
     /// If true, the repeated field in `self` will be replaced by the repeated field in `source`.
     /// Otherwise, the repeated field in `source` will be appended to the repeated field in `self`.
@@ -39,6 +43,7 @@ pub struct UpdateOptions {
     /// implementation][1].
     ///
     /// [1]: https://protobuf.dev/reference/java/api-docs/com/google/protobuf/FieldMask.html
+    #[builder(default = false)]
     pub replace_repeated: bool,
 
     /// Controls the behavior of updating the value of a message field in `self` with the same value
@@ -52,6 +57,7 @@ pub struct UpdateOptions {
     /// implementation][1].
     ///
     /// [1]: https://protobuf.dev/reference/java/api-docs/com/google/protobuf/FieldMask.html
+    #[builder(default = false)]
     pub replace_message: bool,
 }
 

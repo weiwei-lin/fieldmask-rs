@@ -20,3 +20,4 @@ fieldmask_derive = { version = "0.0.8", path = "../fieldmask_derive" }
 prost = { version = "0.13.5", optional = true }
 textwrap = "0.16.2"
 thiserror = "2.0.12"
+typed-builder = "0.21.0"

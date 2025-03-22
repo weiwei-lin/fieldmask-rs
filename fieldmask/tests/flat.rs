@@ -57,6 +57,7 @@ mod project {
 }
 
 mod update {
+
     use super::*;
 
     #[test]
@@ -70,8 +71,8 @@ mod update {
         Mask::<Flat>::try_from(MaskInput(mask.into_iter()))
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
-        let target =
-            Mask::<Flat>::empty().project_with_options(target, &ProjectOptions { normalize: true });
+        let target = Mask::<Flat>::empty()
+            .project_with_options(target, &ProjectOptions::builder().normalize(true).build());
 
         assert_eq!(target, expected);
     }
@@ -87,8 +88,8 @@ mod update {
         Mask::<Flat>::try_from(MaskInput(mask.into_iter()))
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
-        let target =
-            Mask::<Flat>::empty().project_with_options(target, &ProjectOptions { normalize: true });
+        let target = Mask::<Flat>::empty()
+            .project_with_options(target, &ProjectOptions::builder().normalize(true).build());
 
         assert_eq!(target, expected);
     }

@@ -81,7 +81,7 @@ mod project {
         };
 
         let actual = Mask::<Parent>::empty()
-            .project_with_options(actual, &ProjectOptions { normalize: true });
+            .project_with_options(actual, &ProjectOptions::builder().normalize(true).build());
 
         assert_eq!(actual, expected);
     }

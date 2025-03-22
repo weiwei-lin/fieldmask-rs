@@ -147,7 +147,7 @@ mod update {
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
         let target = Mask::<Parent>::empty()
-            .project_with_options(target, &ProjectOptions { normalize: true });
+            .project_with_options(target, &ProjectOptions::builder().normalize(true).build());
 
         assert_eq!(target, expected);
     }
@@ -178,7 +178,7 @@ mod update {
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
         let target = Mask::<Parent>::empty()
-            .project_with_options(target, &ProjectOptions { normalize: true });
+            .project_with_options(target, &ProjectOptions::builder().normalize(true).build());
 
         assert_eq!(target, expected);
     }
@@ -216,7 +216,7 @@ mod update {
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
         let target = Mask::<Parent>::empty()
-            .project_with_options(target, &ProjectOptions { normalize: true });
+            .project_with_options(target, &ProjectOptions::builder().normalize(true).build());
 
         assert_eq!(target, expected);
     }
@@ -247,7 +247,7 @@ mod update {
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
         let target = Mask::<Parent>::empty()
-            .project_with_options(target, &ProjectOptions { normalize: true });
+            .project_with_options(target, &ProjectOptions::builder().normalize(true).build());
 
         assert_eq!(target, expected);
     }
@@ -278,7 +278,7 @@ mod update {
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
         let target = Mask::<Parent>::empty()
-            .project_with_options(target, &ProjectOptions { normalize: true });
+            .project_with_options(target, &ProjectOptions::builder().normalize(true).build());
 
         assert_eq!(target, expected);
     }
@@ -302,10 +302,7 @@ mod update {
             c: 6,
         };
         let mask = vec!["child", "c"];
-        let options = UpdateOptions {
-            replace_message: true,
-            ..Default::default()
-        };
+        let options = UpdateOptions::builder().replace_message(true).build();
         let expected = Parent {
             child: Some(Child {
                 a: 4,
@@ -319,7 +316,7 @@ mod update {
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
         let target = Mask::<Parent>::empty()
-            .project_with_options(target, &ProjectOptions { normalize: true });
+            .project_with_options(target, &ProjectOptions::builder().normalize(true).build());
 
         assert_eq!(target, expected);
     }
@@ -357,7 +354,7 @@ mod update {
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
         let target = Mask::<Parent>::empty()
-            .project_with_options(target, &ProjectOptions { normalize: true });
+            .project_with_options(target, &ProjectOptions::builder().normalize(true).build());
 
         assert_eq!(target, expected);
     }
@@ -381,7 +378,7 @@ mod update {
             .expect("unable to deserialize mask")
             .update_with_options(&mut target, source, &options);
         let target = Mask::<Parent>::empty()
-            .project_with_options(target, &ProjectOptions { normalize: true });
+            .project_with_options(target, &ProjectOptions::builder().normalize(true).build());
 
         assert_eq!(target, expected);
     }
