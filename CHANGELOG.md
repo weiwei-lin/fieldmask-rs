@@ -29,3 +29,5 @@ For released changes, check the release notes [here](https://github.com/weiwei-l
 - Added crate-level documentation.
 
 ## Bug fixes
+- Fix empty mask not treated as a full mask when projecting a tuple enum type with derived
+  `OptionMaskable` implementation.

@@ -179,6 +179,20 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
             }
         }
         InputType::TupleEnum => {
+            let normalize_match_arms = fields.iter().map(|field| {
+                let ident = field.ident;
+                let ty = field.ty;
+                quote! {
+                    Self::#ident(this) => {
+                        ::fieldmask::SelfMaskable::project(
+                            this, 
+                            &<# ty as ::fieldmask::Maskable>::empty_mask(),
+                            options,
+                        );
+                    }
+                }
+            });
+
             let project_match_arms = fields.iter().enumerate().map(|(i, field)| {
                 let index = Index::from(i);
                 let ident = field.ident;
@@ -251,8 +265,17 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
                         mask: &<Self as ::fieldmask::Maskable>::Mask,
                         options: &::fieldmask::ProjectOptions,
                     ) {
-                        // TODO: fix handling of empty mask.
-                        // Currently, empty mask causes nothing to be selected.
+                        if mask == &<Self as ::fieldmask::Maskable>::empty_mask() {
+                            if options.normalize {
+                                if let ::core::option::Option::Some(this) = this {
+                                    match this {
+                                        #(#normalize_match_arms)*
+                                    }
+                                }
+                            }
+                            return;
+                        }
+
                         if let ::core::option::Option::Some(this) = this {
                             match this {
                                 #(#project_match_arms)*
@@ -420,7 +443,11 @@ pub fn derive_self_maskable_impl(input: TokenStream) -> TokenStream {
                 let ident = field.ident;
                 let ty = field.ty;
                 quote! {
-                    ::fieldmask::SelfMaskable::project(&mut self.#ident, &<# ty as ::fieldmask::Maskable>::full_mask(), options);
+                    ::fieldmask::SelfMaskable::project(
+                        &mut self.#ident,
+                        &<# ty as ::fieldmask::Maskable>::empty_mask(),
+                        options,
+                    );
                 }
             });
 
