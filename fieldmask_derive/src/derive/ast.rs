@@ -82,8 +82,33 @@ impl Parse for Input {
                     let mut variants =
                         content.parse_terminated(UnitEnumVariant::parse, Token![,])?;
                     variants.insert(0, first_variant);
+
+                    let mut normalize_some_default = false;
+
+                    let attr_iter = attrs
+                        .iter()
+                        .filter(|attr| attr.path().is_ident("fieldmask"))
+                        .map(|attr| attr.parse_args())
+                        .collect::<syn::Result<Vec<_>>>()?
+                        .into_iter()
+                        .flat_map(|attrs: Wrap<Punctuated<UnitEnumAttribute, Token![,]>>| attrs.0)
+                        .filter(|attr| {
+                            matches!(attr, UnitEnumAttribute::NormalizeSomeDefault { .. })
+                        });
+
+                    for attr in attr_iter {
+                        if normalize_some_default {
+                            return Err(syn::Error::new_spanned(
+                                attr,
+                                "duplicated normalize_some_default attribute",
+                            ));
+                        }
+                        normalize_some_default = true;
+                    }
+
                     return Ok(Self::UnitEnum(ItemUnitEnum {
                         attrs,
+                        normalize_some_default,
                         vis,
                         enum_token,
                         ident,
@@ -113,16 +138,10 @@ impl Parse for Input {
     }
 }
 
-/// The type of the input type declaration.
-pub enum InputType {
-    UnitEnum,
-    TupleEnum,
-    Struct,
-}
-
 /// Represents the declaration of a unit enum.
 pub struct ItemUnitEnum {
     pub attrs: Vec<Attribute>,
+    pub normalize_some_default: bool,
     pub vis: Visibility,
     pub enum_token: Token![enum],
     pub ident: Ident,
@@ -137,10 +156,35 @@ impl ItemUnitEnum {
         let generics = &self.generics;
 
         MessageInfo {
-            message_type: InputType::UnitEnum,
             ident,
             generics,
             fields: vec![],
+        }
+    }
+}
+
+/// Represents an attribute for a unit enum.
+#[derive(PartialEq)]
+enum UnitEnumAttribute {
+    NormalizeSomeDefault { repr: Path },
+}
+
+impl Parse for UnitEnumAttribute {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let meta: Meta = input.parse()?;
+        match meta {
+            Meta::Path(p) if p.is_ident("normalize_some_default") => {
+                Ok(Self::NormalizeSomeDefault { repr: p })
+            }
+            _ => Err(syn::Error::new_spanned(meta, "invalid meta")),
+        }
+    }
+}
+
+impl ToTokens for UnitEnumAttribute {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Self::NormalizeSomeDefault { repr } => repr.to_tokens(tokens),
         }
     }
 }
@@ -162,7 +206,6 @@ impl ItemTupleEnum {
         let generics = &self.generics;
 
         MessageInfo {
-            message_type: InputType::TupleEnum,
             ident,
             generics,
             fields: self
@@ -203,7 +246,6 @@ impl ItemStruct {
             })
             .collect::<Vec<_>>();
         MessageInfo {
-            message_type: InputType::Struct,
             ident,
             generics,
             fields,
@@ -420,7 +462,6 @@ pub struct MessageField<'a> {
 
 /// The metadata of a message.
 pub struct MessageInfo<'a> {
-    pub message_type: InputType,
     pub ident: &'a Ident,
     pub generics: &'a Generics,
     /// The fields of the message.

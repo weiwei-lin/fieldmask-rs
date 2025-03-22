@@ -24,6 +24,14 @@ pub fn derive_maskable(input: TokenStream) -> TokenStream {
 /// - An enum where each variant has exactly one unnamed associated field. The associated field must
 ///   implement `SelfMaskable` and `Default`.
 /// - A struct that implements `Default`, `PartialEq` and `SelfMaskable`.
+///
+/// # Caveats:
+/// When deriving `OptionMaskable` for a unit enum that implements `Default`, you should consider
+/// adding attribute `#[fieldmask(normalize_some_default)]` to the enum. Without this,
+/// `Some(MyUnitEnum::default())` will NOT be normalized to `None` when `ProjectOption::normalize`
+/// is set to true.
+/// Alternatively, you can implement `OptionMaskable` and `SelfMaskable` on the unit enum using the
+/// `maskable_atomic!` macro.
 #[proc_macro_derive(OptionMaskable, attributes(fieldmask))]
 pub fn derive_option_maskable(input: TokenStream) -> TokenStream {
     derive_option_maskable_impl(input)

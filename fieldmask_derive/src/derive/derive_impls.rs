@@ -3,7 +3,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{Index, parse_macro_input};
 
-use super::ast::{Input, InputType, MessageInfo};
+use super::ast::{Input, MessageInfo};
 
 /// The implementation for `derive_maskable`.
 pub fn derive_maskable_impl(input: TokenStream) -> TokenStream {
@@ -139,23 +139,41 @@ pub fn derive_maskable_impl(input: TokenStream) -> TokenStream {
 pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
     let input: Input = parse_macro_input!(input);
     let MessageInfo {
-        message_type,
         ident,
         generics,
         fields,
+        ..
     } = input.get_message_info();
     let (impl_generics, ty_generics, where_clauses) = generics.split_for_impl();
 
-    match message_type {
-        InputType::UnitEnum => {
-            // Unit enums have no fields, the field mask is always empty.
-            quote! {
-                impl ::fieldmask::OptionMaskable for #ident {
+    match input {
+        Input::UnitEnum(ref item) => {
+            let option_project = if item.normalize_some_default{
+                quote! {
+                    fn option_project(
+                        this: &mut ::core::option::Option<Self>,
+                        _mask: &<Self as ::fieldmask::Maskable>::Mask,
+                        options: &::fieldmask::ProjectOptions,
+                    ) {
+                        if options.normalize && this == &::core::option::Option::Some(::core::default::Default::default()) {
+                            *this = ::core::option::Option::None;
+                        }
+                    }
+                }
+            } else {
+                quote! {
                     fn option_project(
                         _this: &mut ::core::option::Option<Self>,
                         _mask: &<Self as ::fieldmask::Maskable>::Mask,
                         _options: &::fieldmask::ProjectOptions,
                     ) {}
+                }
+            };
+
+            // Unit enums have no fields, the field mask is always empty.
+            quote! {
+                impl ::fieldmask::OptionMaskable for #ident {
+                    #option_project
 
                     fn option_update_as_field(
                         this: &mut ::core::option::Option<Self>,
@@ -178,7 +196,7 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
                 }
             }
         }
-        InputType::TupleEnum => {
+        Input::TupleEnum(_) => {
             let normalize_match_arms = fields.iter().map(|field| {
                 let ident = field.ident;
                 let ty = field.ty;
@@ -327,7 +345,7 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
                 }
             }
         }
-        InputType::Struct => {
+        Input::Struct(_) => {
             quote!{
                 impl #impl_generics ::fieldmask::OptionMaskable for #ident #ty_generics
                 #where_clauses
@@ -396,7 +414,6 @@ pub fn derive_option_maskable_impl(input: TokenStream) -> TokenStream {
 pub fn derive_self_maskable_impl(input: TokenStream) -> TokenStream {
     let input: Input = parse_macro_input!(input);
     let MessageInfo {
-        message_type,
         ident,
         generics,
         fields,
@@ -404,8 +421,8 @@ pub fn derive_self_maskable_impl(input: TokenStream) -> TokenStream {
 
     let (impl_generics, ty_generics, where_clauses) = generics.split_for_impl();
 
-    match message_type {
-        InputType::UnitEnum => {
+    match input {
+        Input::UnitEnum(_) => {
             // Unit enums have no fields, the field mask is always empty.
             quote! {
                 impl ::fieldmask::SelfMaskable for #ident {
@@ -432,12 +449,12 @@ pub fn derive_self_maskable_impl(input: TokenStream) -> TokenStream {
                 }
             }
         }
-        InputType::TupleEnum => {
+        Input::TupleEnum(_) => {
             panic!(
                 "Cannot derive `SelfMaskable` for a tuple enum. You can derive `OptionMaskable` instead."
             );
         }
-        InputType::Struct => {
+        Input::Struct(_) => {
             // For each field in the struct, generate a field arm that performs normalize on the field.
             let normalize_arms = fields.iter().map(|field| {
                 let ident = field.ident;

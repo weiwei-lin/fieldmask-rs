@@ -139,6 +139,7 @@ mod project {
 
         let actual = Mask::<Parent>::empty()
             .project_with_options(actual, &ProjectOptions { normalize: true });
+
         assert_eq!(actual, expected);
     }
 
