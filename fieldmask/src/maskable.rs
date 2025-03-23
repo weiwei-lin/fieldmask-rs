@@ -239,14 +239,14 @@ impl<T: OptionMaskable> SelfMaskable for Option<T> {
 }
 
 impl<T: Maskable> Maskable for Box<T> {
-    type Mask = T::Mask;
+    type Mask = Box<T::Mask>;
 
     fn empty_mask() -> Self::Mask {
-        T::empty_mask()
+        Box::new(T::empty_mask())
     }
 
     fn full_mask() -> Self::Mask {
-        T::full_mask()
+        Box::new(T::full_mask())
     }
 
     fn make_mask_include_field<'a>(
